@@ -1,26 +1,3 @@
-/// The data structure that Aptos AMM swap needs to implement.
-
-module swap::lp {
-  /// LP coin type for swap.
-  struct LP<phantom X, phantom Y> {}
-}
-
-module swap::liquidity_pool {
-  use aptos_framework::coin::{Self, Coin};
-  use swap::lp::LP;
-
-  /// Liquidity pool with reserves.
-  struct LiquidityPool<phantom X, phantom Y> has key {
-    coin_x: Coin<X>, // coin x reserve.
-    coin_y: Coin<Y>, // coin y reserve.
-    timestamp: u64, // last block timestamp.
-    x_cumulative: u128, // last price x cumulative.
-    y_cumulative: u128, // last price y cumulative.
-    lp_mint_cap: coin::MintCapability<LP<X, Y>>,
-    lp_burn_cap: coin::BurnCapability<LP<X, Y>>,
-    locked: bool,
-  }
-}
 
 module swap::event {
   use aptos_std::event;
