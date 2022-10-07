@@ -13,6 +13,9 @@ module swap::implements {
   use swap::lp::LP;
 
   const ERR_POOL_EXISTS_FOR_PAIR: u64 = 300;
+  const ERR_POOL_DOES_NOT_EXIST: u64 = 301;
+  const ERR_POOL_IS_LOCKED: u64 = 302;
+
   const SYMBOL_PREFIX_LENGTH: u64 = 4;
 
   /// Generate LP coin name and symbol for pair `X`/`Y`.
@@ -84,5 +87,38 @@ module swap::implements {
       locked: false,
     };
     move_to(&pool_account, pool);
+  }
+
+  public fun get_reserves_size<X, Y>(): (u64, u64) acquires LiquidityPool {
+    assert!(exists<LiquidityPool<X, Y>>(@swap_pool_account), ERR_POOL_DOES_NOT_EXIST);
+
+    let pool = borrow_global<LiquidityPool<X, Y>>(@swap_pool_account);
+    assert!(pool.locked == false, ERR_POOL_IS_LOCKED);
+
+    let x_reserve = coin::value(&pool.coin_x);
+    let y_reserve = coin::value(&pool.coin_y);
+    
+    (x_reserve, y_reserve) 
+  }
+
+  public fun mint<X, Y>(
+    coin_x: Coin<X>,
+    coin_y: Coin<Y>,
+  ): Coin<LP<X, Y>>  acquires LiquidityPool {
+    assert!(exists<LiquidityPool<X, Y>>(@swap_pool_account), ERR_POOL_DOES_NOT_EXIST); 
+    let (x_reserve_size, y_reserve_size) = get_reserves_size<X, Y>();
+    let x_provided_val = coin::value<X>(&coin_x);
+    let y_provided_val = coin::value<Y>(&coin_y);
+
+    let provided_liq = x_provided_val * y_provided_val;
+
+    let pool = borrow_global_mut<LiquidityPool<X, Y>>(@swap_pool_account);
+    coin::merge(&mut pool.coin_x, coin_x);
+    coin::merge(&mut pool.coin_y, coin_y);
+
+    let lp_coins = coin::mint<LP<X, Y>>(provided_liq, &pool.lp_mint_cap);
+    // TO DO: event
+
+    lp_coins
   }
 }
