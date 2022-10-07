@@ -51,8 +51,6 @@ module swap::interface {
    public fun calc_optimal_coin_values<X, Y>(
      x_desired: u64,
      y_desired: u64,
-     x_min: u64,
-     y_min: u64
    ): (u64, u64) {
      let (reserves_x, reserves_y) = implements::get_reserves_size<X, Y>();
      if (reserves_x == 0 && reserves_y == 0) {
@@ -105,8 +103,6 @@ module swap::interface {
     let (optimal_x, optimal_y) = calc_optimal_coin_values<X, Y>(
       coin_x_val,
       coin_y_val,
-      coin_x_val_min,
-      coin_y_val_min,
     );
     let coin_x_opt = coin::extract(&mut coin_x, optimal_x);
     let coin_y_opt = coin::extract(&mut coin_y, optimal_y);
@@ -137,5 +133,22 @@ module swap::interface {
      let account_addr = signer::address_of(account);
      coin::deposit(account_addr, coin_x);
      coin::deposit(account_addr, coin_y);
+  }
+
+  public entry fun swap<X, Y>(
+    account: &signer,
+    coin_val: u64,
+    coin_out_min_val: u64,
+  ) {
+    assert!(!controller::is_emergency(), ERR_EMERGENCY);
+    assert!(is_order<X, Y>(), ERR_MUST_BE_ORDER);
+
+    let coin_x = coin::withdraw<X>(account, coin_val);
+
+    let coin_y = implements::swap<X, Y>(
+      coin_x, coin_out_min_val,);
+
+    let account_addr = signer::address_of(account);
+    coin::deposit(account_addr, coin_y);
   }
 }

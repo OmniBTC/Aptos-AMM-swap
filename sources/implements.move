@@ -17,8 +17,11 @@ module swap::implements {
   const ERR_POOL_DOES_NOT_EXIST: u64 = 301;
   const ERR_POOL_IS_LOCKED: u64 = 302;
   const ERR_INCORRECT_BURN_VALUES: u64 = 303;
+  const ERR_COIN_OUT_NUM_LESS_THAN_EXPECTED_MINIMUM: u64 = 304;
 
   const SYMBOL_PREFIX_LENGTH: u64 = 4;
+  const FEE_MULTIPLIER: u64 = 30;
+  const FEE_SCALE: u64 = 10000;
 
   /// Generate LP coin name and symbol for pair `X`/`Y`.
   /// ```
@@ -150,5 +153,47 @@ module swap::implements {
     coin::burn(lp_coins, &pool.lp_burn_cap);
 
     (x_coin_to_return, y_coin_to_return)
+  }
+
+  public fun get_amout_out<X, Y>(amout_in: u64): u64 acquires LiquidityPool {
+    let (reserve_x, reserve_y) = get_reserves_size<X, Y>();
+
+    let (fee_pct, fee_scale) = (FEE_MULTIPLIER, FEE_SCALE);
+    let fee_multiplier = fee_scale - fee_pct;
+
+    let coin_in_val_after_fees = amout_in * fee_multiplier;
+    let new_reserve_in = reserve_x * fee_scale + coin_in_val_after_fees;
+
+    reserve_y * coin_in_val_after_fees / new_reserve_in
+  }
+
+  public fun swap<X, Y>(
+    coin_in: Coin<X>,
+    coin_out_min_val: u64,
+  ): Coin<Y> acquires LiquidityPool {
+    let coin_in_val = coin::value(&coin_in);
+    let coin_out_val = get_amout_out<X, Y>(coin_in_val);
+    assert!(coin_out_val >= coin_out_min_val, ERR_COIN_OUT_NUM_LESS_THAN_EXPECTED_MINIMUM,);
+
+    assert!(exists<LiquidityPool<X, Y>>(@swap_pool_account), ERR_POOL_DOES_NOT_EXIST);
+    let pool = borrow_global_mut<LiquidityPool<X, Y>>(@swap_pool_account);
+    assert!(pool.locked == false, ERR_POOL_IS_LOCKED);
+
+    //let (reserve_x, reserve_y) = get_reserves_size<X, Y>();
+
+    coin::merge(&mut pool.coin_x, coin_in);
+
+    let y_swapped = coin::extract(&mut pool.coin_y, coin_out_val);
+
+    // let x_res_new_after_fee = coin::value(&pool.coin_x) * FEE_SCALE - coin_in_val * FEE_MULTIPLIER;
+
+    let fee_multiplier = FEE_MULTIPLIER / 5; // 20% fee to swap fundation. 
+    let x_fee_val = coin_in_val * fee_multiplier / FEE_SCALE;
+
+    let x_in = coin::extract(&mut pool.coin_x, x_fee_val);
+    
+    coin::deposit(@swap_pool_account, x_in);
+    
+    y_swapped
   }
 }
