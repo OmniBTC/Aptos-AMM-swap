@@ -16,6 +16,8 @@ module swap::interface {
   const ERR_EMERGENCY: u64 = 102;
   const ERR_INSUFFICIENT_X_AMOUNT: u64 = 103;
   const ERR_INSUFFICIENT_Y_AMOUNT: u64 = 104;
+  const ERR_MUST_BE_ORDER: u64 = 105;
+  const ERR_COIN_OUT_NUM_LESS_THAN_EXPECTED_MINIMUM: u64 = 106;
 
   /// Compare two coins, 'X' and 'Y'.
   fun compare<X, Y>(): Result {
@@ -90,49 +92,50 @@ module swap::interface {
     assert!(!controller::is_emergency(), ERR_EMERGENCY);
     assert!(coin_x_val >= coin_x_val_min, ERR_INSUFFICIENT_X_AMOUNT);
     assert!(coin_y_val >= coin_y_val_min, ERR_INSUFFICIENT_Y_AMOUNT);
+    assert!(is_order<X, Y>(), ERR_MUST_BE_ORDER);
 
     let coin_x = coin::withdraw<X>(account, coin_x_val);
     let coin_y = coin::withdraw<Y>(account, coin_y_val);
 
     let account_addr = signer::address_of(account);
-      if (is_order<X, Y>()) {
-        if (!coin::is_account_registered<LP<X, Y>>(account_addr)) {
-          coin::register<LP<X, Y>>(account);
-        };
+    if (!coin::is_account_registered<LP<X, Y>>(account_addr)) {
+      coin::register<LP<X, Y>>(account);
+    };
 
-        let (optimal_x, optimal_y) = calc_optimal_coin_values<X, Y>(
-            coin_x_val,
-            coin_y_val,
-            coin_x_val_min,
-            coin_y_val_min,
-          );
-        let coin_x_opt = coin::extract(&mut coin_x, optimal_x);
-        let coin_y_opt = coin::extract(&mut coin_y, optimal_y);
-        let lp_coins = implements::mint<X, Y>(
-          coin_x_opt,
-          coin_y_opt,
-        );
-        coin::deposit(account_addr, lp_coins);
-      } else {
-        if (!coin::is_account_registered<LP<Y, X>>(account_addr)) {
-          coin::register<LP<Y, X>>(account);
-        };
-        let (optimal_y, optimal_x) = calc_optimal_coin_values<Y, X>(
-            coin_y_val,
-            coin_x_val,
-            coin_y_val_min,
-            coin_x_val_min,
-          );
-        let coin_x_opt = coin::extract(&mut coin_x, optimal_x);
-        let coin_y_opt = coin::extract(&mut coin_y, optimal_y);
-        let lp_coins = implements::mint<Y, X>(
-          coin_y_opt,
-          coin_x_opt,
-        );
-        coin::deposit(account_addr, lp_coins);
-      };
+    let (optimal_x, optimal_y) = calc_optimal_coin_values<X, Y>(
+      coin_x_val,
+      coin_y_val,
+      coin_x_val_min,
+      coin_y_val_min,
+    );
+    let coin_x_opt = coin::extract(&mut coin_x, optimal_x);
+    let coin_y_opt = coin::extract(&mut coin_y, optimal_y);
+    let lp_coins = implements::mint<X, Y>(
+      coin_x_opt,
+      coin_y_opt,
+    );
 
+    coin::deposit(account_addr, lp_coins);
+    coin::deposit(account_addr, coin_x);
+    coin::deposit(account_addr, coin_y);
+  }
+
+  public entry fun remove_liquidity<X, Y>(
+    account: &signer,
+    lp_val: u64,
+    min_x_out_val: u64,
+    min_y_out_val: u64,
+  ) {
+    assert!(!controller::is_emergency(), ERR_EMERGENCY);
+    assert!(is_order<X, Y>(), ERR_MUST_BE_ORDER);
+     let lp_coins = coin::withdraw<LP<X, Y>>(account, lp_val);
+     let (coin_x, coin_y) = implements::burn<X, Y>(lp_coins);
+
+     assert!(coin::value(&coin_x) >= min_x_out_val, ERR_COIN_OUT_NUM_LESS_THAN_EXPECTED_MINIMUM);
+     assert!(coin::value(&coin_y) >= min_y_out_val, ERR_COIN_OUT_NUM_LESS_THAN_EXPECTED_MINIMUM);
+
+     let account_addr = signer::address_of(account);
      coin::deposit(account_addr, coin_x);
      coin::deposit(account_addr, coin_y);
-   }
+  }
 }

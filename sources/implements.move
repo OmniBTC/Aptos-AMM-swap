@@ -6,6 +6,7 @@ module swap::lp {
 
 module swap::implements {
   use std::string::{Self, String};
+  use std::option;
 
   use aptos_framework::coin::{Self, Coin};
   use aptos_framework::account::{Self, SignerCapability};
@@ -15,6 +16,7 @@ module swap::implements {
   const ERR_POOL_EXISTS_FOR_PAIR: u64 = 300;
   const ERR_POOL_DOES_NOT_EXIST: u64 = 301;
   const ERR_POOL_IS_LOCKED: u64 = 302;
+  const ERR_INCORRECT_BURN_VALUES: u64 = 303;
 
   const SYMBOL_PREFIX_LENGTH: u64 = 4;
 
@@ -87,6 +89,7 @@ module swap::implements {
       locked: false,
     };
     move_to(&pool_account, pool);
+    // TO DO: event
   }
 
   public fun get_reserves_size<X, Y>(): (u64, u64) acquires LiquidityPool {
@@ -120,5 +123,32 @@ module swap::implements {
     // TO DO: event
 
     lp_coins
+  }
+
+  public fun burn<X, Y>(
+    lp_coins: Coin<LP<X, Y>>,
+  ): (Coin<X>, Coin<Y>) acquires LiquidityPool {
+    assert!(exists<LiquidityPool<X, Y>>(@swap_pool_account), ERR_POOL_DOES_NOT_EXIST);
+
+    let pool = borrow_global_mut<LiquidityPool<X, Y>>(@swap_pool_account);
+    assert!(pool.locked == false, ERR_POOL_IS_LOCKED);
+
+    let burned_lp_coins_val = coin::value(&lp_coins);
+    let x_reserve_val = coin::value(&pool.coin_x);
+    let y_reserve_val = coin::value(&pool.coin_y);
+
+    let lp_coins_total = option::extract(&mut coin::supply<Coin<LP<X, Y>>>());
+    let x_tmp = ((x_reserve_val * burned_lp_coins_val) as u128);
+    let x_to_return_val = ((x_tmp / lp_coins_total) as u64);
+    let y_tmp = ((y_reserve_val * burned_lp_coins_val) as u128);
+    let y_to_return_val = ((y_tmp / lp_coins_total) as u64);
+    assert!(x_to_return_val > 0 && y_to_return_val > 0, ERR_INCORRECT_BURN_VALUES);
+
+    let x_coin_to_return = coin::extract(&mut pool.coin_x, x_to_return_val);
+    let y_coin_to_return = coin::extract(&mut pool.coin_y, y_to_return_val);
+
+    coin::burn(lp_coins, &pool.lp_burn_cap);
+
+    (x_coin_to_return, y_coin_to_return)
   }
 }
