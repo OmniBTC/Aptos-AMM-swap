@@ -12,6 +12,7 @@ module swap::implements {
   use aptos_framework::account::{Self, SignerCapability};
 
   use swap::lp::LP;
+  use swap::event;
 
   const ERR_POOL_EXISTS_FOR_PAIR: u64 = 300;
   const ERR_POOL_DOES_NOT_EXIST: u64 = 301;
@@ -92,7 +93,7 @@ module swap::implements {
       locked: false,
     };
     move_to(&pool_account, pool);
-    // TO DO: event
+    event::create_events_store<X, Y>(&pool_account, account);
   }
 
   public fun get_reserves_size<X, Y>(): (u64, u64) acquires LiquidityPool {
