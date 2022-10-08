@@ -141,12 +141,17 @@ module swap::interface {
     coin_out_min_val: u64,
   ) {
     assert!(!controller::is_emergency(), ERR_EMERGENCY);
-    assert!(is_order<X, Y>(), ERR_MUST_BE_ORDER);
 
     let coin_x = coin::withdraw<X>(account, coin_val);
 
-    let coin_y = implements::swap<X, Y>(
-      coin_x, coin_out_min_val,);
+    let coin_y;
+    if (is_order<X, Y>()) {
+      coin_y = implements::swap_x<X, Y>(
+        coin_x, coin_out_min_val,);
+    } else {
+      coin_y = implements::swap_y<Y, X>(
+        coin_x, coin_out_min_val,);
+    };
 
     let account_addr = signer::address_of(account);
     coin::deposit(account_addr, coin_y);

@@ -155,24 +155,29 @@ module swap::implements {
     (x_coin_to_return, y_coin_to_return)
   }
 
-  public fun get_amout_out<X, Y>(amout_in: u64): u64 acquires LiquidityPool {
+  /// if x is true, return coin Y else return coin X.
+  public fun get_amout_out<X, Y>(amout_in: u64, x: bool): u64 acquires LiquidityPool {
     let (reserve_x, reserve_y) = get_reserves_size<X, Y>();
 
     let (fee_pct, fee_scale) = (FEE_MULTIPLIER, FEE_SCALE);
     let fee_multiplier = fee_scale - fee_pct;
 
     let coin_in_val_after_fees = amout_in * fee_multiplier;
-    let new_reserve_in = reserve_x * fee_scale + coin_in_val_after_fees;
-
-    reserve_y * coin_in_val_after_fees / new_reserve_in
+    if (x) {
+      let new_reserve_in = reserve_x * fee_scale + coin_in_val_after_fees;
+      return reserve_y * coin_in_val_after_fees / new_reserve_in
+    } else {
+      let new_reserve_in = reserve_y * fee_scale + coin_in_val_after_fees;
+      return reserve_x * coin_in_val_after_fees / new_reserve_in
+    }
   }
 
-  public fun swap<X, Y>(
+  public fun swap_x<X, Y>(
     coin_in: Coin<X>,
     coin_out_min_val: u64,
   ): Coin<Y> acquires LiquidityPool {
     let coin_in_val = coin::value(&coin_in);
-    let coin_out_val = get_amout_out<X, Y>(coin_in_val);
+    let coin_out_val = get_amout_out<X, Y>(coin_in_val, true);
     assert!(coin_out_val >= coin_out_min_val, ERR_COIN_OUT_NUM_LESS_THAN_EXPECTED_MINIMUM,);
 
     assert!(exists<LiquidityPool<X, Y>>(@swap_pool_account), ERR_POOL_DOES_NOT_EXIST);
@@ -189,11 +194,33 @@ module swap::implements {
 
     let fee_multiplier = FEE_MULTIPLIER / 5; // 20% fee to swap fundation. 
     let x_fee_val = coin_in_val * fee_multiplier / FEE_SCALE;
-
     let x_in = coin::extract(&mut pool.coin_x, x_fee_val);
-    
     coin::deposit(@swap_pool_account, x_in);
     
     y_swapped
+  }
+
+  public fun swap_y<X, Y>(
+    coin_in: Coin<Y>,
+    coin_out_min_val: u64,
+  ): Coin<X> acquires LiquidityPool {
+    let coin_in_val = coin::value(&coin_in);
+    let coin_out_val = get_amout_out<X, Y>(coin_in_val, false);
+    assert!(coin_out_val >= coin_out_min_val, ERR_COIN_OUT_NUM_LESS_THAN_EXPECTED_MINIMUM,);
+
+    assert!(exists<LiquidityPool<X, Y>>(@swap_pool_account), ERR_POOL_DOES_NOT_EXIST);
+    let pool = borrow_global_mut<LiquidityPool<X, Y>>(@swap_pool_account);
+    assert!(pool.locked == false, ERR_POOL_IS_LOCKED);
+
+    coin::merge(&mut pool.coin_y, coin_in);
+
+    let x_swapped = coin::extract(&mut pool.coin_x, coin_out_val);
+
+    let fee_multiplier = FEE_MULTIPLIER / 5; // 20% fee to swap fundation.
+    let y_fee_val = coin_in_val * fee_multiplier / FEE_SCALE;
+    let y_in = coin::extract(&mut pool.coin_y, y_fee_val);
+    coin::deposit(@swap_pool_account, y_in);
+
+    x_swapped
   }
 }
