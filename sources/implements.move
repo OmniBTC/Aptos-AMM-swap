@@ -113,7 +113,6 @@ module swap::implements {
     coin_y: Coin<Y>,
   ): Coin<LP<X, Y>>  acquires LiquidityPool {
     assert!(exists<LiquidityPool<X, Y>>(@swap_pool_account), ERR_POOL_DOES_NOT_EXIST); 
-    let (x_reserve_size, y_reserve_size) = get_reserves_size<X, Y>();
     let x_provided_val = coin::value<X>(&coin_x);
     let y_provided_val = coin::value<Y>(&coin_y);
 
@@ -123,8 +122,8 @@ module swap::implements {
     coin::merge(&mut pool.coin_x, coin_x);
     coin::merge(&mut pool.coin_y, coin_y);
 
+    event::added_event<X, Y>(x_provided_val, y_provided_val, provided_liq);
     let lp_coins = coin::mint<LP<X, Y>>(provided_liq, &pool.lp_mint_cap);
-    // TO DO: event
 
     lp_coins
   }
@@ -150,6 +149,8 @@ module swap::implements {
 
     let x_coin_to_return = coin::extract(&mut pool.coin_x, x_to_return_val);
     let y_coin_to_return = coin::extract(&mut pool.coin_y, y_to_return_val);
+
+    event::removed_event<X, Y>(x_to_return_val, y_to_return_val, burned_lp_coins_val);
 
     coin::burn(lp_coins, &pool.lp_burn_cap);
 
@@ -197,6 +198,7 @@ module swap::implements {
     let x_fee_val = coin_in_val * fee_multiplier / FEE_SCALE;
     let x_in = coin::extract(&mut pool.coin_x, x_fee_val);
     coin::deposit(@swap_pool_account, x_in);
+    event::swapped_event<X, Y>(coin_in_val, 0, 0, coin_out_val);
     
     y_swapped
   }
@@ -221,6 +223,7 @@ module swap::implements {
     let y_fee_val = coin_in_val * fee_multiplier / FEE_SCALE;
     let y_in = coin::extract(&mut pool.coin_y, y_fee_val);
     coin::deposit(@swap_pool_account, y_in);
+    event::swapped_event<X, Y>(0, coin_out_val, coin_in_val, 0);
 
     x_swapped
   }

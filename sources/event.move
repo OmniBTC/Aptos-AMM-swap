@@ -64,4 +64,47 @@ module swap::event {
 
      move_to(pool_account, events_store);
   }
+
+  public fun removed_event<X, Y>(coin_x: u64,
+                                 coin_y: u64,
+                                 lp: u64) acquires EventsStore {
+    let events_store = borrow_global_mut<EventsStore<X, Y>>(@swap_pool_account);
+    event::emit_event(
+      &mut events_store.removed_handle,
+      RemovedEvent<X, Y> {
+        x_val: coin_x,
+        y_val: coin_y,
+        lp_tokens: lp, 
+      });
+  }
+
+  public fun added_event<X, Y>(coin_x: u64,
+                                 coin_y: u64,
+                                 lp: u64) acquires EventsStore {
+    let events_store = borrow_global_mut<EventsStore<X, Y>>(@swap_pool_account);
+    event::emit_event(
+      &mut events_store.added_handle,
+      AddedEvent<X, Y> {
+        x_val: coin_x,
+        y_val: coin_y,
+        lp_tokens: lp, 
+      });
+  }
+
+  public fun swapped_event<X, Y>(x_in: u64,
+                                 x_out: u64,
+                                 y_in: u64,
+                                 y_out: u64) acquires EventsStore {
+    let events_store = borrow_global_mut<EventsStore<X, Y>>(@swap_pool_account);
+    event::emit_event(
+      &mut events_store.swapped_handle,
+      SwappedEvent<X, Y> {
+        x_in,
+        x_out,
+        y_in, 
+        y_out,
+      });
+  }
+
+
 }
