@@ -11,6 +11,7 @@ module swap::implements {
 
   use aptos_framework::coin::{Self, Coin};
   use aptos_framework::account::{Self, SignerCapability};
+  use aptos_framework::timestamp;
 
   use swap::lp::LP;
   use swap::event;
@@ -124,6 +125,7 @@ module swap::implements {
     coin::merge(&mut pool.coin_y, coin_y);
 
     event::added_event<X, Y>(x_provided_val, y_provided_val, provided_liq);
+    update_oracle<X, Y>(pool);
     let lp_coins = coin::mint<LP<X, Y>>(provided_liq, &pool.lp_mint_cap);
 
     lp_coins
@@ -152,6 +154,7 @@ module swap::implements {
     let y_coin_to_return = coin::extract(&mut pool.coin_y, y_to_return_val);
 
     event::removed_event<X, Y>(x_to_return_val, y_to_return_val, burned_lp_coins_val);
+    update_oracle<X, Y>(pool);
 
     coin::burn(lp_coins, &pool.lp_burn_cap);
 
@@ -187,8 +190,6 @@ module swap::implements {
     let pool = borrow_global_mut<LiquidityPool<X, Y>>(@swap_pool_account);
     assert!(pool.locked == false, ERR_POOL_IS_LOCKED);
 
-    //let (reserve_x, reserve_y) = get_reserves_size<X, Y>();
-
     coin::merge(&mut pool.coin_x, coin_in);
 
     let y_swapped = coin::extract(&mut pool.coin_y, coin_out_val);
@@ -200,6 +201,7 @@ module swap::implements {
     let x_in = coin::extract(&mut pool.coin_x, x_fee_val);
     coin::deposit(@swap_pool_account, x_in);
     event::swapped_event<X, Y>(coin_in_val, 0, 0, coin_out_val);
+    update_oracle<X, Y>(pool);
     
     y_swapped
   }
@@ -225,7 +227,28 @@ module swap::implements {
     let y_in = coin::extract(&mut pool.coin_y, y_fee_val);
     coin::deposit(@swap_pool_account, y_in);
     event::swapped_event<X, Y>(0, coin_out_val, coin_in_val, 0);
+    update_oracle<X, Y>(pool);
 
     x_swapped
+  }
+
+  fun update_oracle<X, Y>(
+    pool: &mut LiquidityPool<X, Y>,
+  ) {
+    let x_reserve = coin::value(&pool.coin_x);
+    let y_reserve = coin::value(&pool.coin_y);
+
+    let last_block_timestamp = pool.timestamp;
+    let block_timestamp = timestamp::now_seconds(); 
+    let time_elapsed = block_timestamp - last_block_timestamp;
+
+    if (time_elapsed > 0 && x_reserve != 0 && y_reserve != 0) {
+      pool.x_cumulative = (time_elapsed as u128) * (x_reserve as u128) / (y_reserve as u128);
+      pool.y_cumulative = (time_elapsed as u128) * (y_reserve as u128) / (x_reserve as u128);
+
+      event::update_oracle_event<X, Y>(pool.x_cumulative, pool.y_cumulative);
+    };
+
+    pool.timestamp = block_timestamp;
   }
 }

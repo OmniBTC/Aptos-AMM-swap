@@ -107,5 +107,15 @@ module swap::event {
       });
   }
 
-
+  public fun update_oracle_event<X, Y>(x_cumulative: u128,
+                                       y_cumulative: u128,
+                                      ) acquires EventsStore {
+    let events_store = borrow_global_mut<EventsStore<X, Y>>(@swap_pool_account);
+    event::emit_event(
+      &mut events_store.oracle_updated_handle,
+      OracleUpdatedEvent<X, Y> {
+        x_cumulative,
+        y_cumulative,
+      });
+  }
 }
