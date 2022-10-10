@@ -33,7 +33,7 @@ module swap::implements {
   /// ```
   /// For example, for `LP<BTC, USDT>`,
   /// the result will be `(b"LP-BTC-USDT", b"BTC-USDT")`
-  fun generate_lp_name_and_symbol<X, Y>(): (String, String) {
+  public fun generate_lp_name_and_symbol<X, Y>(): (String, String) {
     let lp_name = string::utf8(b"");
     string::append_utf8(&mut lp_name, b"LP-");
     string::append(&mut lp_name, coin::symbol<X>());

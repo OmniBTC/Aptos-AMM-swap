@@ -66,7 +66,6 @@ module swap::interface {
        }
      } 
    }
-  
 
   /// Register a new liquidity pool for 'X'/'Y' pair.
   public entry fun register_pool<X, Y>(account: &signer) {
