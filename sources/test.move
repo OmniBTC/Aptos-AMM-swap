@@ -39,7 +39,7 @@ module swap::tests {
 
   #[test_only]
   fun register_all_coins() {
-    let coin_admin = account::create_account_for_test(@swap); // should used @test_coin_admin
+    let coin_admin = account::create_account_for_test(@swap);
     // XBTC
     register_coin<XBTC>(&coin_admin, b"XBTC", b"XBTC", 8);
     // USDT
