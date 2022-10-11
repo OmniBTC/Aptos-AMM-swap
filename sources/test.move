@@ -4,14 +4,14 @@ module swap::tests {
 
   use aptos_framework::coin::{Self, MintCapability, BurnCapability};
   use aptos_framework::account;
+  use aptos_framework::aptos_coin::{Self, AptosCoin};
 
   use swap::implements;
+  use swap::interface;
 
   struct XBTC {}
 
   struct USDT {}
-
-  struct USDC {}
 
   struct Capabilities<phantom CoinType> has key {
     mint_cap: MintCapability<CoinType>,
@@ -38,22 +38,43 @@ module swap::tests {
   }
 
   #[test_only]
-  fun register_all_coins() {
+  fun register_all_coins(): signer {
     let coin_admin = account::create_account_for_test(@swap);
     // XBTC
     register_coin<XBTC>(&coin_admin, b"XBTC", b"XBTC", 8);
     // USDT
     register_coin<USDT>(&coin_admin, b"USDT", b"USDT", 8);
-    // USDC
-    register_coin<USDC>(&coin_admin, b"USDC", b"USDC", 8);
+
+    // APT
+    let apt_admin = account::create_account_for_test(@0x1);
+    let (burn_cap, mint_cap) = aptos_coin::initialize_for_test(&apt_admin);
+    coin::destroy_mint_cap<AptosCoin>(mint_cap);
+    coin::destroy_burn_cap<AptosCoin>(burn_cap);
+    coin_admin
   }
 
   #[test]
   fun test_generate_lp_name_and_symbol() {
-    register_all_coins();
-    let (lp_name, lp_symbol) = implements::generate_lp_name_and_symbol<XBTC, USDT>();
+    let (_) = register_all_coins();
 
+    let (lp_name, lp_symbol) = implements::generate_lp_name_and_symbol<XBTC, USDT>();
     assert!(lp_name == utf8(b"LP-XBTC-USDT"), 0);
     assert!(lp_symbol == utf8(b"XBTC-USDT"), 0);
+
+    let (lp_name2, lp_symbol2) = implements::generate_lp_name_and_symbol<AptosCoin, USDT>();
+    assert!(lp_name2 == utf8(b"LP-APT-USDT"), 0);
+    assert!(lp_symbol2 == utf8(b"APT-USDT"), 0);
+  }
+
+  #[test]
+  fun test_register_pool() {
+    let coin_admin = account::create_account_for_test(@swap);
+    // XBTC
+    register_coin<XBTC>(&coin_admin, b"XBTC", b"XBTC", 8);
+    // USDT
+    register_coin<USDT>(&coin_admin, b"USDT", b"USDT", 8);
+
+    interface::initialize_swap(&coin_admin);
+    //interface::register_pool<XBTC, USDT>(&coin_admin);
   }
 }

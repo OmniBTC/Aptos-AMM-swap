@@ -8,6 +8,7 @@ module swap::lp {
 module swap::implements {
   use std::string::{Self, String};
   use std::option;
+  use std::signer;
 
   use aptos_framework::coin::{Self, Coin};
   use aptos_framework::account::{Self, SignerCapability};
@@ -15,16 +16,26 @@ module swap::implements {
 
   use swap::lp::LP;
   use swap::event;
+  use swap::controller;
 
   const ERR_POOL_EXISTS_FOR_PAIR: u64 = 300;
   const ERR_POOL_DOES_NOT_EXIST: u64 = 301;
   const ERR_POOL_IS_LOCKED: u64 = 302;
   const ERR_INCORRECT_BURN_VALUES: u64 = 303;
   const ERR_COIN_OUT_NUM_LESS_THAN_EXPECTED_MINIMUM: u64 = 304;
+  const ERR_NOT_ENOUGH_PERMISSIONS: u64 = 305;
 
   const SYMBOL_PREFIX_LENGTH: u64 = 4;
   const FEE_MULTIPLIER: u64 = 30;
   const FEE_SCALE: u64 = 10000;
+
+  public fun initialize_swap(swap_admin: &signer) {
+    assert!(signer::address_of(swap_admin) == @swap, ERR_NOT_ENOUGH_PERMISSIONS);
+    let (_, signer_cap) = account::create_resource_account(swap_admin, b"swap_account_seed");
+
+    move_to(swap_admin, PoolAccountCapability { signer_cap } );
+    controller::initialize(swap_admin);
+  }
 
   /// Generate LP coin name and symbol for pair `X`/`Y`.
   /// ```

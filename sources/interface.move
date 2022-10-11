@@ -67,6 +67,11 @@ module swap::interface {
      } 
    }
 
+  /// Initialize swap
+  public entry fun initialize_swap(swap_admin: &signer) {
+    implements::initialize_swap(swap_admin);
+  }
+
   /// Register a new liquidity pool for 'X'/'Y' pair.
   public entry fun register_pool<X, Y>(account: &signer) {
     assert!(!controller::is_emergency(), ERR_EMERGENCY);
