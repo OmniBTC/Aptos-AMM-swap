@@ -8,6 +8,7 @@ module swap::implements {
   use aptos_framework::coin::{Self, Coin};
   use aptos_framework::account::{Self, SignerCapability};
   use aptos_framework::timestamp;
+  use aptos_framework::debug;
 
   use lp::lp_coin::LP;
   use swap::event;
@@ -83,6 +84,7 @@ module swap::implements {
 
     let pool_cap = borrow_global<PoolAccountCapability>(@swap);
     let pool_account = account::create_signer_with_capability(&pool_cap.signer_cap);
+    debug::print(&pool_account);
 
     let (lp_name, lp_symbol) = generate_lp_name_and_symbol<X, Y>(); 
 
