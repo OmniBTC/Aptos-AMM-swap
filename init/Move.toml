@@ -1,0 +1,10 @@
+[package]
+name = 'init'
+version = '1.0.0'
+[dependencies.AptosFramework]
+git = 'https://github.com/aptos-labs/aptos-core.git'
+rev = 'main'
+subdir = 'aptos-move/framework/aptos-framework'
+
+[addresses]
+swap = "0xf5bb1482c28e3c600edf4cac9a10511b3d9a8e162d5b64d9741e2a8cb086bb50"

@@ -8,33 +8,23 @@ module swap::implements {
   use aptos_framework::coin::{Self, Coin};
   use aptos_framework::account::{Self, SignerCapability};
   use aptos_framework::timestamp;
-  use aptos_framework::debug;
 
   use lp::lp_coin::LP;
   use swap::event;
   use swap::controller;
+  use swap::init;
 
   const ERR_POOL_EXISTS_FOR_PAIR: u64 = 300;
   const ERR_POOL_DOES_NOT_EXIST: u64 = 301;
   const ERR_POOL_IS_LOCKED: u64 = 302;
   const ERR_INCORRECT_BURN_VALUES: u64 = 303;
   const ERR_COIN_OUT_NUM_LESS_THAN_EXPECTED_MINIMUM: u64 = 304;
-  const ERR_NOT_ENOUGH_PERMISSIONS: u64 = 305;
+  const ERR_NOT_ENOUGH_PERMISSIONS_TO_INITIALIZE: u64 = 306;
 
   const SYMBOL_PREFIX_LENGTH: u64 = 4;
   const FEE_MULTIPLIER: u64 = 30;
   const FEE_SCALE: u64 = 10000;
 
-  public fun initialize_swap(swap_admin: &signer,
-                             metadata: vector<u8>,
-                             code: vector<u8>) {
-    assert!(signer::address_of(swap_admin) == @swap, ERR_NOT_ENOUGH_PERMISSIONS);
-    let (lp_acc, signer_cap) = account::create_resource_account(swap_admin, b"swap_account_seed");
-    aptos_framework::code::publish_package_txn(&lp_acc, metadata, vector[code]);
-
-    move_to(swap_admin, PoolAccountCapability { signer_cap } );
-    controller::initialize(swap_admin);
-  }
 
   /// Generate LP coin name and symbol for pair `X`/`Y`.
   /// ```
@@ -67,8 +57,6 @@ module swap::implements {
     string::sub_string(&symbol, 0, prefix_length)
   }
 
-  struct PoolAccountCapability has key { signer_cap: SignerCapability }
-
   /// Liquidity pool with reserves.
   struct LiquidityPool<phantom X, phantom Y> has key {
     coin_x: Coin<X>, // coin x reserve.
@@ -81,13 +69,22 @@ module swap::implements {
     locked: bool,
   }
 
+  struct PoolAccountCapability has key { signer_cap: SignerCapability }
+
+  public fun initialize_swap(swap_admin: &signer) {
+    assert!(signer::address_of(swap_admin) == @swap, ERR_NOT_ENOUGH_PERMISSIONS_TO_INITIALIZE);
+
+    let signer_cap = init::retrieve_signer_cap(swap_admin);
+    move_to(swap_admin, PoolAccountCapability { signer_cap });
+    controller::initialize(swap_admin);
+  }
+
   // 'X', 'Y' must ordered.
   public fun register_pool<X, Y>(account: &signer) acquires PoolAccountCapability {
     assert!(!exists<LiquidityPool<X, Y>>(@swap_pool_account), ERR_POOL_EXISTS_FOR_PAIR);
 
     let pool_cap = borrow_global<PoolAccountCapability>(@swap);
     let pool_account = account::create_signer_with_capability(&pool_cap.signer_cap);
-    debug::print(&pool_account);
 
     let (lp_name, lp_symbol) = generate_lp_name_and_symbol<X, Y>(); 
 
