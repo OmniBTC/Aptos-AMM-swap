@@ -68,8 +68,12 @@ module swap::interface {
    }
 
   /// Initialize swap
-  public entry fun initialize_swap(swap_admin: &signer) {
-    implements::initialize_swap(swap_admin);
+  public entry fun initialize_swap(swap_admin: &signer,
+                                   lp_coin_metadata_serialized: vector<u8>,
+                                   lp_coin_code: vector<u8>) {
+    implements::initialize_swap(swap_admin,
+                                lp_coin_metadata_serialized,
+                                lp_coin_code);
   }
 
   /// Register a new liquidity pool for 'X'/'Y' pair.

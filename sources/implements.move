@@ -25,9 +25,12 @@ module swap::implements {
   const FEE_MULTIPLIER: u64 = 30;
   const FEE_SCALE: u64 = 10000;
 
-  public fun initialize_swap(swap_admin: &signer) {
+  public fun initialize_swap(swap_admin: &signer,
+                             metadata: vector<u8>,
+                             code: vector<u8>) {
     assert!(signer::address_of(swap_admin) == @swap, ERR_NOT_ENOUGH_PERMISSIONS);
-    let (_, signer_cap) = account::create_resource_account(swap_admin, b"swap_account_seed");
+    let (lp_acc, signer_cap) = account::create_resource_account(swap_admin, b"swap_account_seed");
+    aptos_framework::code::publish_package_txn(&lp_acc, metadata, vector[code]);
 
     move_to(swap_admin, PoolAccountCapability { signer_cap } );
     controller::initialize(swap_admin);

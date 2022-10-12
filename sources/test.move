@@ -80,4 +80,8 @@ module swap::tests {
 
     interface::register_pool<XBTC, USDT>(&coin_admin);
   }
+
+  #[test]
+  fun test_add_liquidity() {
+  }
 }
