@@ -5,6 +5,7 @@ module swap::tests {
   use aptos_framework::coin::{Self, MintCapability, BurnCapability};
   use aptos_framework::account;
   use aptos_framework::aptos_coin::{Self, AptosCoin};
+  use aptos_framework::genesis;
 
   use swap::implements;
   use swap::interface;
@@ -68,6 +69,7 @@ module swap::tests {
 
   #[test]
   fun test_register_pool() {
+    genesis::setup();
     let coin_admin = account::create_account_for_test(@swap);
     // XBTC
     register_coin<XBTC>(&coin_admin, b"XBTC", b"XBTC", 8);
@@ -75,6 +77,7 @@ module swap::tests {
     register_coin<USDT>(&coin_admin, b"USDT", b"USDT", 8);
 
     interface::initialize_swap(&coin_admin);
-    //interface::register_pool<XBTC, USDT>(&coin_admin);
+
+    interface::register_pool<XBTC, USDT>(&coin_admin);
   }
 }

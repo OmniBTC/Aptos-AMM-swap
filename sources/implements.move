@@ -1,10 +1,5 @@
 /// Copyright 2022 OmniBTC Authors. Licensed under Apache-2.0 License.
 
-module swap::lp {
-  /// LP coin type for swap.
-  struct LP<phantom X, phantom Y> {}
-}
-
 module swap::implements {
   use std::string::{Self, String};
   use std::option;
@@ -14,7 +9,7 @@ module swap::implements {
   use aptos_framework::account::{Self, SignerCapability};
   use aptos_framework::timestamp;
 
-  use swap::lp::LP;
+  use lp::lp_coin::LP;
   use swap::event;
   use swap::controller;
 
@@ -84,7 +79,7 @@ module swap::implements {
 
   // 'X', 'Y' must ordered.
   public fun register_pool<X, Y>(account: &signer) acquires PoolAccountCapability {
-    assert!(!exists<LiquidityPool<X, Y>>(@lp_account), ERR_POOL_EXISTS_FOR_PAIR);
+    assert!(!exists<LiquidityPool<X, Y>>(@swap_pool_account), ERR_POOL_EXISTS_FOR_PAIR);
 
     let pool_cap = borrow_global<PoolAccountCapability>(@swap);
     let pool_account = account::create_signer_with_capability(&pool_cap.signer_cap);

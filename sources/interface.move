@@ -10,7 +10,7 @@ module swap::interface {
 
   use swap::implements;
   use swap::controller;
-  use swap::lp::LP;
+  use lp::lp_coin::LP;
 
   const ERR_NOT_COIN: u64 = 100;
   const ERR_THE_SAME_COIN: u64 = 101;

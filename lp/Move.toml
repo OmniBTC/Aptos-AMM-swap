@@ -1,0 +1,10 @@
+[package]
+name = 'lp'
+version = '1.0.0'
+[dependencies.AptosFramework]
+git = 'https://github.com/aptos-labs/aptos-core.git'
+rev = 'main'
+subdir = 'aptos-move/framework/aptos-framework'
+
+[addresses]
+lp = "0xee14bdd3f34bf95a01a63dc4efbfb0a072aa1bc8ee6e4d763659a811a9a28b21"
