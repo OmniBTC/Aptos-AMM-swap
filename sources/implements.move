@@ -20,10 +20,12 @@ module swap::implements {
   const ERR_INCORRECT_BURN_VALUES: u64 = 303;
   const ERR_COIN_OUT_NUM_LESS_THAN_EXPECTED_MINIMUM: u64 = 304;
   const ERR_NOT_ENOUGH_PERMISSIONS_TO_INITIALIZE: u64 = 306;
+  const ERR_LIQUID_NOT_ENOUGH: u64 = 307;
 
   const SYMBOL_PREFIX_LENGTH: u64 = 4;
   const FEE_MULTIPLIER: u64 = 30;
   const FEE_SCALE: u64 = 10000;
+  const U64_MAX: u64 = 18446744073709551615;
 
 
   /// Generate LP coin name and symbol for pair `X`/`Y`.
@@ -126,7 +128,10 @@ module swap::implements {
     let x_provided_val = coin::value<X>(&coin_x);
     let y_provided_val = coin::value<Y>(&coin_y);
 
-    let provided_liq = x_provided_val * y_provided_val;
+    let provided_liq_u128 = (x_provided_val as u128) * (y_provided_val as u128) / (U64_MAX as u128);
+    let provided_liq = (provided_liq_u128 as u64);
+
+    assert!(provided_liq > 0, ERR_LIQUID_NOT_ENOUGH);
 
     let pool = borrow_global_mut<LiquidityPool<X, Y>>(@swap_pool_account);
     coin::merge(&mut pool.coin_x, coin_x);

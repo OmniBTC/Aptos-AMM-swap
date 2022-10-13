@@ -106,8 +106,8 @@ module swap::tests {
     // USDT
     let usdt_mint_cap = register_coin<USDT>(&coin_admin, b"USDT", b"USDT", 8);
 
-    let coin_xbtc = coin::mint<XBTC>(20000, &xbtc_mint_cap);
-    let coin_usdt = coin::mint<USDT>(200000000, &usdt_mint_cap);
+    let coin_xbtc = coin::mint<XBTC>(200000000, &xbtc_mint_cap);
+    let coin_usdt = coin::mint<USDT>(2000000000000, &usdt_mint_cap);
 
     let (lp_coin_metadata, lp_coin_code) = get_code_and_metadata();
     init::initialize_swap(&coin_admin, lp_coin_metadata, lp_coin_code);
