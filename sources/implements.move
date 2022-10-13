@@ -159,7 +159,7 @@ module swap::implements {
     let y_reserve_val = coin::value(&pool.coin_y);
 
     debug::print(&1);
-    let lp_coins_total = option::extract(&mut coin::supply<Coin<LP<X, Y>>>());
+    let lp_coins_total = option::extract(&mut coin::supply<LP<X, Y>>());
     debug::print(&2);
     let x_tmp = ((x_reserve_val * burned_lp_coins_val) as u128);
     let x_to_return_val = ((x_tmp / lp_coins_total) as u64);
