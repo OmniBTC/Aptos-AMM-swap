@@ -2,7 +2,6 @@
 
 module swap::init {
   use std::signer;
-  use std::vector;
 
   use aptos_framework::debug;
   
@@ -29,13 +28,5 @@ module swap::init {
     let CapabilityStorage { signer_cap } =
       move_from<CapabilityStorage>(signer::address_of(swap_admin));
     signer_cap
-  }
-
-  #[test]
-  fun test_initialize_swap() {
-    let metadata = vector::empty<u8>();
-    let code = vector::empty<u8>();
-    let coin_admin = account::create_account_for_test(@swap);
-    initialize_swap(&coin_admin, metadata, code);
   }
 }

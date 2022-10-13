@@ -2,7 +2,7 @@
 module swap::tests {
   use std::string::utf8;
 
-  use aptos_framework::coin::{Self, MintCapability, BurnCapability};
+  use aptos_framework::coin::{Self, MintCapability};
   use aptos_framework::account;
   use aptos_framework::aptos_coin::{Self, AptosCoin};
   use aptos_framework::genesis;
@@ -15,15 +15,11 @@ module swap::tests {
 
   struct USDT {}
 
-  struct Capabilities<phantom CoinType> has key {
-    mint_cap: MintCapability<CoinType>,
-    burn_cap: BurnCapability<CoinType>,
-  }
-
+  #[test_only]
   fun register_coin<CoinType>(coin_admin: &signer,
                               name: vector<u8>,
                               symbol: vector<u8>,
-                              decimals: u8) {
+                              decimals: u8): MintCapability<CoinType> {
     let (burn_cap, freeze_cap, mint_cap) =
       coin::initialize<CoinType>(
         coin_admin,
@@ -32,20 +28,20 @@ module swap::tests {
         decimals,
         true);
     coin::destroy_freeze_cap(freeze_cap);
+    coin::destroy_burn_cap(burn_cap);
 
-    move_to(coin_admin, Capabilities<CoinType> {
-      mint_cap,
-      burn_cap,
-    });
+    mint_cap
   }
 
   #[test_only]
   fun register_all_coins(): signer {
     let coin_admin = account::create_account_for_test(@swap);
     // XBTC
-    register_coin<XBTC>(&coin_admin, b"XBTC", b"XBTC", 8);
+    let xbtc_mint_cap = register_coin<XBTC>(&coin_admin, b"XBTC", b"XBTC", 8);
+    coin::destroy_mint_cap(xbtc_mint_cap);
     // USDT
-    register_coin<USDT>(&coin_admin, b"USDT", b"USDT", 8);
+    let usdt_mint_cap = register_coin<USDT>(&coin_admin, b"USDT", b"USDT", 8);
+    coin::destroy_mint_cap(usdt_mint_cap);
 
     // APT
     let apt_admin = account::create_account_for_test(@0x1);
@@ -88,15 +84,47 @@ module swap::tests {
     genesis::setup();
     let coin_admin = account::create_account_for_test(@swap);
     // XBTC
-    register_coin<XBTC>(&coin_admin, b"XBTC", b"XBTC", 8);
+    let xbtc_mint_cap = register_coin<XBTC>(&coin_admin, b"XBTC", b"XBTC", 8);
+    coin::destroy_mint_cap(xbtc_mint_cap);
     // USDT
-    register_coin<USDT>(&coin_admin, b"USDT", b"USDT", 8);
+    let usdt_mint_cap = register_coin<USDT>(&coin_admin, b"USDT", b"USDT", 8);
+    coin::destroy_mint_cap(usdt_mint_cap);
 
     let (lp_coin_metadata, lp_coin_code) = get_code_and_metadata();
     init::initialize_swap(&coin_admin, lp_coin_metadata, lp_coin_code);
     interface::initialize_swap(&coin_admin);
 
     interface::register_pool<XBTC, USDT>(&coin_admin);
+  }
+
+  #[test]
+  fun test_add_liquid() {
+    genesis::setup();
+    let coin_admin = account::create_account_for_test(@swap);
+    // XBTC
+    let xbtc_mint_cap = register_coin<XBTC>(&coin_admin, b"XBTC", b"XBTC", 8);
+    // USDT
+    let usdt_mint_cap = register_coin<USDT>(&coin_admin, b"USDT", b"USDT", 8);
+
+    let coin_xbtc = coin::mint<XBTC>(20000, &xbtc_mint_cap);
+    let coin_usdt = coin::mint<USDT>(200000000, &usdt_mint_cap);
+
+    let (lp_coin_metadata, lp_coin_code) = get_code_and_metadata();
+    init::initialize_swap(&coin_admin, lp_coin_metadata, lp_coin_code);
+    interface::initialize_swap(&coin_admin);
+
+    interface::register_pool<XBTC, USDT>(&coin_admin);
+ 
+    let coin_x_val = coin::value(&coin_xbtc);
+    let coin_y_val = coin::value(&coin_usdt);
+    coin::register<XBTC>(&coin_admin);
+    coin::register<USDT>(&coin_admin);
+    coin::deposit(@swap, coin_xbtc);
+    coin::deposit(@swap, coin_usdt);
+    interface::add_liquidity<USDT, XBTC>(&coin_admin, coin_y_val, 1000, coin_x_val, 1000);
+
+    coin::destroy_mint_cap(xbtc_mint_cap);
+    coin::destroy_mint_cap(usdt_mint_cap);
   }
 }
 

@@ -38,7 +38,7 @@ module swap::interface {
     comparator::compare(&x_address, &y_address)
   }
 
-   fun is_order<X, Y>(): bool {
+  fun is_order<X, Y>(): bool {
      let comp = compare<X, Y>();
      assert!(!comparator::is_equal(&comp), ERR_THE_SAME_COIN);
 
@@ -47,25 +47,25 @@ module swap::interface {
      } else {
        false
      }
-   }
+  }
 
-   public fun calc_optimal_coin_values<X, Y>(
-     x_desired: u64,
-     y_desired: u64,
-   ): (u64, u64) {
-     let (reserves_x, reserves_y) = implements::get_reserves_size<X, Y>();
-     if (reserves_x == 0 && reserves_y == 0) {
-       return (x_desired, y_desired)
-     } else {
-       let y_returned = reserves_y / reserves_x * x_desired;
-       if (y_returned <= y_desired) {
-         return (x_desired, y_returned)
-       } else {
-         let x_returned = reserves_x / reserves_y * y_desired;
-         return (x_returned, y_desired)
-       }
-     } 
-   }
+  public fun calc_optimal_coin_values<X, Y>(
+    x_desired: u64,
+    y_desired: u64,
+  ): (u64, u64) {
+    let (reserves_x, reserves_y) = implements::get_reserves_size<X, Y>();
+    if (reserves_x == 0 && reserves_y == 0) {
+      return (x_desired, y_desired)
+    } else {
+      let y_returned = reserves_y / reserves_x * x_desired;
+      if (y_returned <= y_desired) {
+        return (x_desired, y_returned)
+      } else {
+        let x_returned = reserves_x / reserves_y * y_desired;
+        return (x_returned, y_desired)
+      }
+    } 
+  }
 
   /// Initialize swap
   public entry fun initialize_swap(swap_admin: &signer) {
