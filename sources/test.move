@@ -98,7 +98,7 @@ module swap::tests {
   }
 
   #[test]
-  fun test_add_liquid() {
+  fun test_add_liquidity() {
     genesis::setup();
     let coin_admin = account::create_account_for_test(@swap);
     // XBTC
@@ -125,6 +125,38 @@ module swap::tests {
 
     coin::destroy_mint_cap(xbtc_mint_cap);
     coin::destroy_mint_cap(usdt_mint_cap);
+  }
+
+  #[test]
+  fun test_remove_liquidity() {
+    genesis::setup();
+    let coin_admin = account::create_account_for_test(@swap);
+    // XBTC
+    let xbtc_mint_cap = register_coin<XBTC>(&coin_admin, b"XBTC", b"XBTC", 8);
+    // USDT
+    let usdt_mint_cap = register_coin<USDT>(&coin_admin, b"USDT", b"USDT", 8);
+
+    let coin_xbtc = coin::mint<XBTC>(200000000, &xbtc_mint_cap);
+    let coin_usdt = coin::mint<USDT>(2000000000000, &usdt_mint_cap);
+
+    let (lp_coin_metadata, lp_coin_code) = get_code_and_metadata();
+    init::initialize_swap(&coin_admin, lp_coin_metadata, lp_coin_code);
+    interface::initialize_swap(&coin_admin);
+
+    interface::register_pool<XBTC, USDT>(&coin_admin);
+ 
+    let coin_x_val = coin::value(&coin_xbtc);
+    let coin_y_val = coin::value(&coin_usdt);
+    coin::register<XBTC>(&coin_admin);
+    coin::register<USDT>(&coin_admin);
+    coin::deposit(@swap, coin_xbtc);
+    coin::deposit(@swap, coin_usdt);
+    interface::add_liquidity<USDT, XBTC>(&coin_admin, coin_y_val, 1000, coin_x_val, 1000);
+
+    coin::destroy_mint_cap(xbtc_mint_cap);
+    coin::destroy_mint_cap(usdt_mint_cap);
+
+    interface::remove_liquidity<USDT, XBTC>(&coin_admin, 2, 1000, 1000);
   }
 }
 

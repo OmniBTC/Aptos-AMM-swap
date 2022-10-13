@@ -8,12 +8,14 @@ module swap::implements {
   use aptos_framework::coin::{Self, Coin};
   use aptos_framework::account::{Self, SignerCapability};
   use aptos_framework::timestamp;
+  use aptos_framework::debug;
 
   use lp::lp_coin::LP;
   use swap::event;
   use swap::controller;
   use swap::init;
 
+  friend swap::interface;
   const ERR_POOL_EXISTS_FOR_PAIR: u64 = 300;
   const ERR_POOL_DOES_NOT_EXIST: u64 = 301;
   const ERR_POOL_IS_LOCKED: u64 = 302;
@@ -73,7 +75,7 @@ module swap::implements {
 
   struct PoolAccountCapability has key { signer_cap: SignerCapability }
 
-  public fun initialize_swap(swap_admin: &signer) {
+  public(friend) fun initialize_swap(swap_admin: &signer) {
     assert!(signer::address_of(swap_admin) == @swap, ERR_NOT_ENOUGH_PERMISSIONS_TO_INITIALIZE);
 
     let signer_cap = init::retrieve_signer_cap(swap_admin);
@@ -82,7 +84,7 @@ module swap::implements {
   }
 
   // 'X', 'Y' must ordered.
-  public fun register_pool<X, Y>(account: &signer) acquires PoolAccountCapability {
+  public(friend) fun register_pool<X, Y>(account: &signer) acquires PoolAccountCapability {
     assert!(!exists<LiquidityPool<X, Y>>(@swap_pool_account), ERR_POOL_EXISTS_FOR_PAIR);
 
     let pool_cap = borrow_global<PoolAccountCapability>(@swap);
@@ -120,7 +122,7 @@ module swap::implements {
     (x_reserve, y_reserve) 
   }
 
-  public fun mint<X, Y>(
+  public(friend) fun mint<X, Y>(
     coin_x: Coin<X>,
     coin_y: Coin<Y>,
   ): Coin<LP<X, Y>>  acquires LiquidityPool {
@@ -144,7 +146,7 @@ module swap::implements {
     lp_coins
   }
 
-  public fun burn<X, Y>(
+  public(friend) fun burn<X, Y>(
     lp_coins: Coin<LP<X, Y>>,
   ): (Coin<X>, Coin<Y>) acquires LiquidityPool {
     assert!(exists<LiquidityPool<X, Y>>(@swap_pool_account), ERR_POOL_DOES_NOT_EXIST);
@@ -156,7 +158,9 @@ module swap::implements {
     let x_reserve_val = coin::value(&pool.coin_x);
     let y_reserve_val = coin::value(&pool.coin_y);
 
+    debug::print(&1);
     let lp_coins_total = option::extract(&mut coin::supply<Coin<LP<X, Y>>>());
+    debug::print(&2);
     let x_tmp = ((x_reserve_val * burned_lp_coins_val) as u128);
     let x_to_return_val = ((x_tmp / lp_coins_total) as u64);
     let y_tmp = ((y_reserve_val * burned_lp_coins_val) as u128);
@@ -191,7 +195,7 @@ module swap::implements {
     }
   }
 
-  public fun swap_x<X, Y>(
+  public(friend) fun swap_x<X, Y>(
     coin_in: Coin<X>,
     coin_out_min_val: u64,
   ): Coin<Y> acquires LiquidityPool {
@@ -219,7 +223,7 @@ module swap::implements {
     y_swapped
   }
 
-  public fun swap_y<X, Y>(
+  public(friend) fun swap_y<X, Y>(
     coin_in: Coin<Y>,
     coin_out_min_val: u64,
   ): Coin<X> acquires LiquidityPool {
