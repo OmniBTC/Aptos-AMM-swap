@@ -1,0 +1,5 @@
+build/
+storage/
+.aptos/
+lp/build
+init/build
