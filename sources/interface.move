@@ -10,7 +10,6 @@ module swap::interface {
 
   use swap::implements;
   use swap::controller;
-  use lp::lp_coin::LP;
 
   const ERR_NOT_COIN: u64 = 100;
   const ERR_THE_SAME_COIN: u64 = 101;
@@ -25,7 +24,7 @@ module swap::interface {
     let x_info = type_info::type_of<X>();
     let x_compare = &mut type_info::struct_name(&x_info);
     vector::append(x_compare, type_info::module_name(&x_info));
-    
+
     let y_info = type_info::type_of<Y>();
     let y_compare = &mut type_info::struct_name(&y_info);
     vector::append(y_compare, type_info::module_name(&y_info));
@@ -64,21 +63,24 @@ module swap::interface {
          let x_returned = reserves_x / reserves_y * y_desired;
          return (x_returned, y_desired)
        }
-     } 
+     }
    }
 
   /// Initialize swap
-  public entry fun initialize_swap(swap_admin: &signer) {
-    implements::initialize_swap(swap_admin);
+  public entry fun initialize_swap(
+    swap_admin: &signer,
+    emergency_admin: address
+  ) {
+    implements::initialize_swap(swap_admin, emergency_admin);
   }
 
   /// Register a new liquidity pool for 'X'/'Y' pair.
   public entry fun register_pool<X, Y>(account: &signer) {
     assert!(!controller::is_emergency(), ERR_EMERGENCY);
-    assert!(coin::is_coin_initialized<X>(), ERR_NOT_COIN); 
+    assert!(coin::is_coin_initialized<X>(), ERR_NOT_COIN);
     assert!(coin::is_coin_initialized<Y>(), ERR_NOT_COIN);
-    
-    if (is_order<X, Y>()) { 
+
+    if (is_order<X, Y>()) {
       implements::register_pool<X, Y>(account);
     } else {
       implements::register_pool<Y, X>(account);
@@ -101,8 +103,8 @@ module swap::interface {
     let coin_y = coin::withdraw<Y>(account, coin_y_val);
 
     let account_addr = signer::address_of(account);
-    if (!coin::is_account_registered<LP<X, Y>>(account_addr)) {
-      coin::register<LP<X, Y>>(account);
+    if (!coin::is_account_registered<implements::LP<X, Y>>(account_addr)) {
+      coin::register<implements::LP<X, Y>>(account);
     };
 
     let (optimal_x, optimal_y) = calc_optimal_coin_values<X, Y>(
@@ -129,7 +131,7 @@ module swap::interface {
   ) {
     assert!(!controller::is_emergency(), ERR_EMERGENCY);
     assert!(is_order<X, Y>(), ERR_MUST_BE_ORDER);
-     let lp_coins = coin::withdraw<LP<X, Y>>(account, lp_val);
+     let lp_coins = coin::withdraw<implements::LP<X, Y>>(account, lp_val);
      let (coin_x, coin_y) = implements::burn<X, Y>(lp_coins);
 
      assert!(coin::value(&coin_x) >= min_x_out_val, ERR_COIN_OUT_NUM_LESS_THAN_EXPECTED_MINIMUM);

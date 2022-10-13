@@ -9,6 +9,7 @@ module swap::tests {
 
   use swap::implements;
   use swap::interface;
+  use std::signer;
 
   struct XBTC {}
 
@@ -19,10 +20,12 @@ module swap::tests {
     burn_cap: BurnCapability<CoinType>,
   }
 
-  fun register_coin<CoinType>(coin_admin: &signer,
-                              name: vector<u8>,
-                              symbol: vector<u8>,
-                              decimals: u8) {
+  fun register_coin<CoinType>(
+    coin_admin: &signer,
+    name: vector<u8>,
+    symbol: vector<u8>,
+    decimals: u8
+  ) {
     let (burn_cap, freeze_cap, mint_cap) =
       coin::initialize<CoinType>(
         coin_admin,
@@ -56,7 +59,7 @@ module swap::tests {
 
   #[test]
   fun test_generate_lp_name_and_symbol() {
-    let (_) = register_all_coins();
+    let _ = register_all_coins();
 
     let (lp_name, lp_symbol) = implements::generate_lp_name_and_symbol<XBTC, USDT>();
     assert!(lp_name == utf8(b"LP-XBTC-USDT"), 0);
@@ -67,18 +70,20 @@ module swap::tests {
     assert!(lp_symbol2 == utf8(b"APT-USDT"), 0);
   }
 
-  #[test]
-  fun test_register_pool() {
+  #[test(swap = @swap)]
+  fun test_register_pool(
+    swap: &signer
+  ) {
     genesis::setup();
-    let coin_admin = account::create_account_for_test(@swap);
+
     // XBTC
-    register_coin<XBTC>(&coin_admin, b"XBTC", b"XBTC", 8);
+    register_coin<XBTC>(swap, b"XBTC", b"XBTC", 8);
     // USDT
-    register_coin<USDT>(&coin_admin, b"USDT", b"USDT", 8);
+    register_coin<USDT>(swap, b"USDT", b"USDT", 8);
 
-    interface::initialize_swap(&coin_admin);
+    interface::initialize_swap(swap, signer::address_of(swap));
 
-    interface::register_pool<XBTC, USDT>(&coin_admin);
+    interface::register_pool<XBTC, USDT>(swap);
   }
 
   #[test]
