@@ -2,6 +2,9 @@
 module swap::math {
 
   const ERR_DIVIDE_BY_ZERO: u64 = 500;
+  const ERR_U64_OVERFLOW: u64 = 501;
+
+  const U64_MAX: u64 = 18446744073709551615;
 
   /// Get a nearest lower integer Square Root for `x`. Given that this
   /// function can only operate with integers, it is impossible
@@ -50,6 +53,7 @@ module swap::math {
   public fun mul_div(x: u64, y: u64, z: u64): u64 {
     assert!(z != 0, ERR_DIVIDE_BY_ZERO);
     let r = (x as u128) * (y as u128) / (z as u128);
+    assert!( !(r > (U64_MAX as u128)) , ERR_U64_OVERFLOW);
     (r as u64)
   }
 }
