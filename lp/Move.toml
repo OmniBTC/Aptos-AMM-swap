@@ -1,6 +1,8 @@
 [package]
 name = 'lp'
 version = '1.0.0'
+license = "Apache-2.0"
+upgrade_policy = "compatible"
 
 [dev-dependencies.MoveStdlib]
 git = "https://github.com/aptos-labs/aptos-core.git"
