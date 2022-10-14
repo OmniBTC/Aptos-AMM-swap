@@ -53,12 +53,19 @@ module swap::event {
         // last price of y cumulative.
     }
 
+    /// Withdraw fee coins
+    struct WithdrewEvent has drop, store {
+        coin: String,
+        fee: u64
+    }
+
     struct EventsStore has key {
         created_handle: EventHandle<CreatedEvent>,
         removed_handle: EventHandle<RemovedEvent>,
         added_handle: EventHandle<AddedEvent>,
         swapped_handle: EventHandle<SwappedEvent>,
         oracle_updated_handle: EventHandle<OracleUpdatedEvent>,
+        withdrew_handle: EventHandle<WithdrewEvent>
     }
 
     public(friend) fun initialize(pool_account: &signer) {
@@ -68,6 +75,7 @@ module swap::event {
             added_handle: account::new_event_handle<AddedEvent>(pool_account),
             swapped_handle: account::new_event_handle<SwappedEvent>(pool_account),
             oracle_updated_handle: account::new_event_handle<OracleUpdatedEvent>(pool_account),
+            withdrew_handle: account::new_event_handle<WithdrewEvent>(pool_account),
         };
 
         move_to(pool_account, events_store);
@@ -105,7 +113,8 @@ module swap::event {
                 x_val,
                 y_val,
                 lp_tokens,
-            });
+            }
+        )
     }
 
     public(friend) fun removed_event<X, Y>(
@@ -124,7 +133,8 @@ module swap::event {
                 x_val,
                 y_val,
                 lp_tokens,
-            });
+            }
+        )
     }
 
     public(friend) fun swapped_event<X, Y>(
@@ -145,7 +155,8 @@ module swap::event {
                 x_out,
                 y_in,
                 y_out,
-            });
+            }
+        )
     }
 
     public(friend) fun update_oracle_event<X, Y>(
@@ -162,6 +173,22 @@ module swap::event {
                 coin_y: type_name<Y>(),
                 x_cumulative,
                 y_cumulative,
-            });
+            }
+        )
+    }
+
+    public(friend) fun withdrew_event<Coin>(
+        pool_address: address,
+        fee: u64
+    ) acquires EventsStore {
+        let event_store = borrow_global_mut<EventsStore>(pool_address);
+
+        emit_event(
+            &mut event_store.withdrew_handle,
+            WithdrewEvent {
+                coin: type_name<Coin>(),
+                fee
+            }
+        )
     }
 }

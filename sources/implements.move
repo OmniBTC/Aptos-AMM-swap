@@ -15,6 +15,7 @@ module swap::implements {
 
     friend swap::interface;
     friend swap::controller;
+    friend swap::beneficiary;
 
     const ERR_POOL_EXISTS_FOR_PAIR: u64 = 300;
     const ERR_POOL_DOES_NOT_EXIST: u64 = 301;
@@ -82,6 +83,7 @@ module swap::implements {
 
     struct Config has key {
         pool_cap: SignerCapability,
+        fee_cap: SignerCapability,
         controller: address,
         beneficiary: address
     }
@@ -100,7 +102,21 @@ module swap::implements {
         account::get_signer_capability_address(&config.pool_cap)
     }
 
-    fun beneficiary(): address acquires Config {
+    fun fee_account(): signer acquires Config {
+        assert!(exists<Config>(@swap), ERR_SWAP_NOT_INITIALIZE);
+
+        let config = borrow_global<Config>(@swap);
+        account::create_signer_with_capability(&config.fee_cap)
+    }
+
+    fun fee_address(): address acquires Config {
+        assert!(exists<Config>(@swap), ERR_SWAP_NOT_INITIALIZE);
+
+        let config = borrow_global<Config>(@swap);
+        account::get_signer_capability_address(&config.fee_cap)
+    }
+
+    public(friend) fun beneficiary(): address acquires Config {
         assert!(exists<Config>(@swap), ERR_SWAP_NOT_INITIALIZE);
 
         borrow_global<Config>(@swap).beneficiary
@@ -121,8 +137,12 @@ module swap::implements {
 
         let pool_cap = init::retrieve_signer_cap(swap_admin);
         let pool_account = account::create_signer_with_capability(&pool_cap);
+        let (_signer, fee_cap) = account::create_resource_account(
+            swap_admin,
+            b"controller_account_seed"
+        );
 
-        move_to(swap_admin, Config { pool_cap, controller, beneficiary });
+        move_to(swap_admin, Config { pool_cap, fee_cap, controller, beneficiary });
 
         event::initialize(&pool_account);
     }
@@ -131,6 +151,8 @@ module swap::implements {
     public(friend) fun register_pool<X, Y>(account: &signer) acquires Config {
         let pool_account = pool_account();
         let pool_address = signer::address_of(&pool_account);
+        let fee_account = fee_account();
+        let fee_address = signer::address_of(&fee_account);
 
         assert!(!exists<LiquidityPool<X, Y>>(pool_address), ERR_POOL_EXISTS_FOR_PAIR);
 
@@ -139,6 +161,14 @@ module swap::implements {
         let (lp_burn_cap, lp_freeze_cap, lp_mint_cap) =
             coin::initialize<LP<X, Y>>(&pool_account, lp_name, lp_symbol, 8, true);
         coin::destroy_freeze_cap(lp_freeze_cap);
+
+        if (!coin::is_account_registered<X>(fee_address)) {
+            coin::register<X>(&fee_account)
+        };
+
+        if (!coin::is_account_registered<Y>(fee_address)) {
+            coin::register<Y>(&fee_account)
+        };
 
         let pool = LiquidityPool<X, Y> {
             coin_x: coin::zero<X>(),
@@ -334,5 +364,17 @@ module swap::implements {
         };
 
         pool.timestamp = block_timestamp;
+    }
+
+    public(friend) fun withdraw_fee<Coin>(
+        account: address
+    ) acquires Config {
+        let fee_account = fee_account();
+        let fee_address = signer::address_of(&fee_account);
+
+        let total = coin::balance<Coin>(fee_address);
+        coin::transfer<Coin>(&fee_account, account, total);
+
+        event::withdrew_event<Coin>(pool_address(), total)
     }
 }

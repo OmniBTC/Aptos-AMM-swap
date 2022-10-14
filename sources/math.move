@@ -1,5 +1,4 @@
-/// Copyright 2022 OmniBTC Authors. Licensed under Apache-2.0 License.
-
+// Copyright 2022 OmniBTC Authors. Licensed under Apache-2.0 License.
 module swap::math {
 
   /// Get a nearest lower integer Square Root for `x`. Given that this
