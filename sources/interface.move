@@ -1,17 +1,17 @@
 // Copyright 2022 OmniBTC Authors. Licensed under Apache-2.0 License.
 module swap::interface {
-  use std::signer;
-  use std::vector;
+    use std::signer;
+    use std::vector;
 
-  use aptos_framework::coin;
-  use aptos_std::comparator::{Self, Result};
-  use aptos_std::type_info;
-  use lp::lp_coin::LP;
+    use aptos_framework::coin;
+    use aptos_std::comparator::{Self, Result};
+    use aptos_std::type_info;
+    use lp::lp_coin::LP;
 
-  use swap::controller;
-  use swap::implements;
+    use swap::controller;
+    use swap::implements;
 
-  const ERR_NOT_COIN: u64 = 100;
+    const ERR_NOT_COIN: u64 = 100;
     const ERR_THE_SAME_COIN: u64 = 101;
     const ERR_EMERGENCY: u64 = 102;
     const ERR_INSUFFICIENT_X_AMOUNT: u64 = 103;

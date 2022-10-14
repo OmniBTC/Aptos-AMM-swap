@@ -1,20 +1,20 @@
 // Copyright 2022 OmniBTC Authors. Licensed under Apache-2.0 License.
 module swap::implements {
-  use std::option;
-  use std::signer;
-  use std::string::{Self, String};
+    use std::option;
+    use std::signer;
+    use std::string::{Self, String};
 
-  use aptos_framework::account::{Self, SignerCapability};
-  use aptos_framework::coin::{Self, Coin};
-  use aptos_framework::debug;
-  use aptos_framework::timestamp;
-  use lp::lp_coin::LP;
+    use aptos_framework::account::{Self, SignerCapability};
+    use aptos_framework::coin::{Self, Coin};
+    use aptos_framework::debug;
+    use aptos_framework::timestamp;
+    use lp::lp_coin::LP;
 
-  use swap::controller;
-  use swap::event;
-  use swap::init;
+    use swap::controller;
+    use swap::event;
+    use swap::init;
 
-  friend swap::interface;
+    friend swap::interface;
     const ERR_POOL_EXISTS_FOR_PAIR: u64 = 300;
     const ERR_POOL_DOES_NOT_EXIST: u64 = 301;
     const ERR_POOL_IS_LOCKED: u64 = 302;
@@ -22,6 +22,7 @@ module swap::implements {
     const ERR_COIN_OUT_NUM_LESS_THAN_EXPECTED_MINIMUM: u64 = 304;
     const ERR_NOT_ENOUGH_PERMISSIONS_TO_INITIALIZE: u64 = 306;
     const ERR_LIQUID_NOT_ENOUGH: u64 = 307;
+    const ERR_SWAP_NOT_INITIALIZE: u64 = 308;
 
     const SYMBOL_PREFIX_LENGTH: u64 = 4;
     const FEE_MULTIPLIER: u64 = 30;
@@ -79,20 +80,39 @@ module swap::implements {
 
     struct PoolAccountCapability has key { signer_cap: SignerCapability }
 
+    fun pool_account(): signer acquires PoolAccountCapability {
+        assert!(exists<PoolAccountCapability>(@swap), ERR_SWAP_NOT_INITIALIZE);
+
+        let pool_cap = borrow_global<PoolAccountCapability>(@swap);
+        account::create_signer_with_capability(&pool_cap.signer_cap)
+    }
+
+    fun pool_address(): address acquires PoolAccountCapability {
+        assert!(exists<PoolAccountCapability>(@swap), ERR_SWAP_NOT_INITIALIZE);
+
+        let pool_cap = borrow_global<PoolAccountCapability>(@swap);
+        account::get_signer_capability_address(&pool_cap.signer_cap)
+    }
+
     public(friend) fun initialize_swap(swap_admin: &signer) {
         assert!(signer::address_of(swap_admin) == @swap, ERR_NOT_ENOUGH_PERMISSIONS_TO_INITIALIZE);
 
         let signer_cap = init::retrieve_signer_cap(swap_admin);
+        let pool_account = account::create_signer_with_capability(&signer_cap);
+
         move_to(swap_admin, PoolAccountCapability { signer_cap });
+
         controller::initialize(swap_admin);
+
+        event::initialize(&pool_account);
     }
 
     // 'X', 'Y' must ordered.
     public(friend) fun register_pool<X, Y>(account: &signer) acquires PoolAccountCapability {
-        assert!(!exists<LiquidityPool<X, Y>>(@swap_pool_account), ERR_POOL_EXISTS_FOR_PAIR);
+        let pool_account = pool_account();
+        let pool_address = signer::address_of(&pool_account);
 
-        let pool_cap = borrow_global<PoolAccountCapability>(@swap);
-        let pool_account = account::create_signer_with_capability(&pool_cap.signer_cap);
+        assert!(!exists<LiquidityPool<X, Y>>(pool_address), ERR_POOL_EXISTS_FOR_PAIR);
 
         let (lp_name, lp_symbol) = generate_lp_name_and_symbol<X, Y>();
 
@@ -111,13 +131,16 @@ module swap::implements {
             locked: false,
         };
         move_to(&pool_account, pool);
-        event::create_events_store<X, Y>(&pool_account, account);
+
+        event::created_event<X, Y>(pool_address, signer::address_of(account));
     }
 
-    public fun get_reserves_size<X, Y>(): (u64, u64) acquires LiquidityPool {
-        assert!(exists<LiquidityPool<X, Y>>(@swap_pool_account), ERR_POOL_DOES_NOT_EXIST);
+    public fun get_reserves_size<X, Y>(): (u64, u64) acquires LiquidityPool, PoolAccountCapability {
+        let pool_address = pool_address();
 
-        let pool = borrow_global<LiquidityPool<X, Y>>(@swap_pool_account);
+        assert!(exists<LiquidityPool<X, Y>>(pool_address), ERR_POOL_DOES_NOT_EXIST);
+
+        let pool = borrow_global<LiquidityPool<X, Y>>(pool_address);
         assert!(pool.locked == false, ERR_POOL_IS_LOCKED);
 
         let x_reserve = coin::value(&pool.coin_x);
@@ -129,8 +152,10 @@ module swap::implements {
     public(friend) fun mint<X, Y>(
         coin_x: Coin<X>,
         coin_y: Coin<Y>,
-    ): Coin<LP<X, Y>>  acquires LiquidityPool {
-        assert!(exists<LiquidityPool<X, Y>>(@swap_pool_account), ERR_POOL_DOES_NOT_EXIST);
+    ): Coin<LP<X, Y>>  acquires LiquidityPool, PoolAccountCapability {
+        let pool_address = pool_address();
+        assert!(exists<LiquidityPool<X, Y>>(pool_address), ERR_POOL_DOES_NOT_EXIST);
+
         let x_provided_val = coin::value<X>(&coin_x);
         let y_provided_val = coin::value<Y>(&coin_y);
 
@@ -139,12 +164,13 @@ module swap::implements {
 
         assert!(provided_liq > 0, ERR_LIQUID_NOT_ENOUGH);
 
-        let pool = borrow_global_mut<LiquidityPool<X, Y>>(@swap_pool_account);
+        let pool = borrow_global_mut<LiquidityPool<X, Y>>(pool_address);
         coin::merge(&mut pool.coin_x, coin_x);
         coin::merge(&mut pool.coin_y, coin_y);
 
-        event::added_event<X, Y>(x_provided_val, y_provided_val, provided_liq);
-        update_oracle<X, Y>(pool);
+        event::added_event<X, Y>(pool_address, x_provided_val, y_provided_val, provided_liq);
+        update_oracle<X, Y>(pool_address, pool);
+
         let lp_coins = coin::mint<LP<X, Y>>(provided_liq, &pool.lp_mint_cap);
 
         lp_coins
@@ -152,10 +178,11 @@ module swap::implements {
 
     public(friend) fun burn<X, Y>(
         lp_coins: Coin<LP<X, Y>>,
-    ): (Coin<X>, Coin<Y>) acquires LiquidityPool {
-        assert!(exists<LiquidityPool<X, Y>>(@swap_pool_account), ERR_POOL_DOES_NOT_EXIST);
+    ): (Coin<X>, Coin<Y>) acquires LiquidityPool, PoolAccountCapability {
+        let pool_address = pool_address();
+        assert!(exists<LiquidityPool<X, Y>>(pool_address), ERR_POOL_DOES_NOT_EXIST);
 
-        let pool = borrow_global_mut<LiquidityPool<X, Y>>(@swap_pool_account);
+        let pool = borrow_global_mut<LiquidityPool<X, Y>>(pool_address);
         assert!(pool.locked == false, ERR_POOL_IS_LOCKED);
 
         let burned_lp_coins_val = coin::value(&lp_coins);
@@ -174,8 +201,8 @@ module swap::implements {
         let x_coin_to_return = coin::extract(&mut pool.coin_x, x_to_return_val);
         let y_coin_to_return = coin::extract(&mut pool.coin_y, y_to_return_val);
 
-        event::removed_event<X, Y>(x_to_return_val, y_to_return_val, burned_lp_coins_val);
-        update_oracle<X, Y>(pool);
+        event::removed_event<X, Y>(pool_address, x_to_return_val, y_to_return_val, burned_lp_coins_val);
+        update_oracle<X, Y>(pool_address, pool);
 
         coin::burn(lp_coins, &pool.lp_burn_cap);
 
@@ -183,7 +210,10 @@ module swap::implements {
     }
 
     /// if x is true, return coin Y else return coin X.
-    public fun get_amout_out<X, Y>(amout_in: u64, x: bool): u64 acquires LiquidityPool {
+    public fun get_amout_out<X, Y>(
+        amout_in: u64,
+        x: bool
+    ): u64 acquires LiquidityPool, PoolAccountCapability {
         let (reserve_x, reserve_y) = get_reserves_size<X, Y>();
 
         let (fee_pct, fee_scale) = (FEE_MULTIPLIER, FEE_SCALE);
@@ -202,13 +232,14 @@ module swap::implements {
     public(friend) fun swap_x<X, Y>(
         coin_in: Coin<X>,
         coin_out_min_val: u64,
-    ): Coin<Y> acquires LiquidityPool {
+    ): Coin<Y> acquires LiquidityPool, PoolAccountCapability {
         let coin_in_val = coin::value(&coin_in);
         let coin_out_val = get_amout_out<X, Y>(coin_in_val, true);
         assert!(coin_out_val >= coin_out_min_val, ERR_COIN_OUT_NUM_LESS_THAN_EXPECTED_MINIMUM, );
 
-        assert!(exists<LiquidityPool<X, Y>>(@swap_pool_account), ERR_POOL_DOES_NOT_EXIST);
-        let pool = borrow_global_mut<LiquidityPool<X, Y>>(@swap_pool_account);
+        let pool_address = pool_address();
+        assert!(exists<LiquidityPool<X, Y>>(pool_address), ERR_POOL_DOES_NOT_EXIST);
+        let pool = borrow_global_mut<LiquidityPool<X, Y>>(pool_address);
         assert!(pool.locked == false, ERR_POOL_IS_LOCKED);
 
         coin::merge(&mut pool.coin_x, coin_in);
@@ -220,9 +251,9 @@ module swap::implements {
         let fee_multiplier = FEE_MULTIPLIER / 5; // 20% fee to swap fundation.
         let x_fee_val = coin_in_val * fee_multiplier / FEE_SCALE;
         let x_in = coin::extract(&mut pool.coin_x, x_fee_val);
-        coin::deposit(@swap_pool_account, x_in);
-        event::swapped_event<X, Y>(coin_in_val, 0, 0, coin_out_val);
-        update_oracle<X, Y>(pool);
+        coin::deposit(pool_address, x_in);
+        event::swapped_event<X, Y>(pool_address, coin_in_val, 0, 0, coin_out_val);
+        update_oracle<X, Y>(pool_address, pool);
 
         y_swapped
     }
@@ -230,13 +261,14 @@ module swap::implements {
     public(friend) fun swap_y<X, Y>(
         coin_in: Coin<Y>,
         coin_out_min_val: u64,
-    ): Coin<X> acquires LiquidityPool {
+    ): Coin<X> acquires LiquidityPool, PoolAccountCapability {
         let coin_in_val = coin::value(&coin_in);
         let coin_out_val = get_amout_out<X, Y>(coin_in_val, false);
         assert!(coin_out_val >= coin_out_min_val, ERR_COIN_OUT_NUM_LESS_THAN_EXPECTED_MINIMUM, );
 
-        assert!(exists<LiquidityPool<X, Y>>(@swap_pool_account), ERR_POOL_DOES_NOT_EXIST);
-        let pool = borrow_global_mut<LiquidityPool<X, Y>>(@swap_pool_account);
+        let pool_address = pool_address();
+        assert!(exists<LiquidityPool<X, Y>>(pool_address), ERR_POOL_DOES_NOT_EXIST);
+        let pool = borrow_global_mut<LiquidityPool<X, Y>>(pool_address);
         assert!(pool.locked == false, ERR_POOL_IS_LOCKED);
 
         coin::merge(&mut pool.coin_y, coin_in);
@@ -246,14 +278,15 @@ module swap::implements {
         let fee_multiplier = FEE_MULTIPLIER / 5; // 20% fee to swap fundation.
         let y_fee_val = coin_in_val * fee_multiplier / FEE_SCALE;
         let y_in = coin::extract(&mut pool.coin_y, y_fee_val);
-        coin::deposit(@swap_pool_account, y_in);
-        event::swapped_event<X, Y>(0, coin_out_val, coin_in_val, 0);
-        update_oracle<X, Y>(pool);
+        coin::deposit(pool_address, y_in);
+        event::swapped_event<X, Y>(pool_address, 0, coin_out_val, coin_in_val, 0);
+        update_oracle<X, Y>(pool_address, pool);
 
         x_swapped
     }
 
     fun update_oracle<X, Y>(
+        pool_address: address,
         pool: &mut LiquidityPool<X, Y>,
     ) {
         let x_reserve = coin::value(&pool.coin_x);
@@ -267,7 +300,7 @@ module swap::implements {
             pool.x_cumulative = (time_elapsed as u128) * (x_reserve as u128) / (y_reserve as u128);
             pool.y_cumulative = (time_elapsed as u128) * (y_reserve as u128) / (x_reserve as u128);
 
-            event::update_oracle_event<X, Y>(pool.x_cumulative, pool.y_cumulative);
+            event::update_oracle_event<X, Y>(pool_address, pool.x_cumulative, pool.y_cumulative);
         };
 
         pool.timestamp = block_timestamp;
