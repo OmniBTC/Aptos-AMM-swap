@@ -1,6 +1,8 @@
 // Copyright 2022 OmniBTC Authors. Licensed under Apache-2.0 License.
 module swap::math {
 
+  const ERR_DIVIDE_BY_ZERO: u64 = 500;
+
   /// Get a nearest lower integer Square Root for `x`. Given that this
   /// function can only operate with integers, it is impossible
   /// to get perfect (or precise) integer square root for some numbers.
@@ -42,5 +44,12 @@ module swap::math {
       };
 
       (res as u64)
+  }
+
+  /// Implements: `x` * `y` / `z`.
+  public fun mul_div(x: u64, y: u64, z: u64): u64 {
+    assert!(z != 0, ERR_DIVIDE_BY_ZERO);
+    let r = (x as u128) * (y as u128) / (z as u128);
+    (r as u64)
   }
 }

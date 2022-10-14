@@ -4,8 +4,8 @@ module swap::beneficiary {
     use swap::implements::{beneficiary, withdraw_fee};
     use swap::controller::is_emergency;
 
-    const ERR_NO_PERMISSIONS: u64 = 301;
-    const ERR_EMERGENCY: u64 = 302;
+    const ERR_NO_PERMISSIONS: u64 = 400;
+    const ERR_EMERGENCY: u64 = 401;
 
     /// Transfers fee coin to the beneficiary.
     public entry fun withdraw<Coin>(account: &signer) {

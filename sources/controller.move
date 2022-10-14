@@ -5,9 +5,9 @@ module swap::controller {
 
     struct Emergency has key {}
 
-    const ERR_NO_PERMISSIONS: u64 = 201;
-    const ERR_ALREADY_PAUSE: u64 = 202;
-    const ERR_NOT_PAUSE: u64 = 203;
+    const ERR_NO_PERMISSIONS: u64 = 200;
+    const ERR_ALREADY_PAUSE: u64 = 201;
+    const ERR_NOT_PAUSE: u64 = 202;
 
     public entry fun pause(account: &signer) {
         let controller = controller();

@@ -27,6 +27,9 @@ module swap::implements {
     const ERR_SWAP_NOT_INITIALIZE: u64 = 308;
     const ERR_U64_OVERFLOW: u64 = 309;
     const MINIMAL_LIQUIDITY: u64 = 310;
+    const ERR_OVERLIMIT_X: u64 = 311;
+    const ERR_WRONG_AMOUNT: u64 = 312;
+    const ERR_WRONG_RESERVE: u64 = 313;
 
     const SYMBOL_PREFIX_LENGTH: u64 = 4;
     const FEE_MULTIPLIER: u64 = 30;
@@ -376,5 +379,43 @@ module swap::implements {
         coin::transfer<Coin>(&fee_account, account, total);
 
         event::withdrew_event<Coin>(pool_address(), total)
+    }
+
+    /// Return amount of liquidity (LP) need for `coin_in`.
+    /// * `coin_in` - amount to swap.
+    /// * `reserve_in` - reserves of coin to swap.
+    /// * `reserve_out` - reserves of coin to get.
+    public fun convert_with_current_price(coin_in: u64, reserve_in: u64, reserve_out: u64): u64 {
+        assert!(coin_in > 0, ERR_WRONG_AMOUNT);
+        assert!(reserve_in > 0 && reserve_out > 0, ERR_WRONG_RESERVE);
+
+        // exchange_price = reserve_out / reserve_in_size
+        // amount_returned = coin_in_val * exchange_price
+        let res = math::mul_div(coin_in, reserve_out, reserve_in);
+        (res as u64)
+    }
+
+    /// Calculate amounts needed for adding new liquidity for both `X` and `Y`.
+    /// * `x_desired` - desired value of coins `X`.
+    /// * `y_desired` - desired value of coins `Y`.
+    /// Returns both `X` and `Y` coins amounts.
+    public fun calc_optimal_coin_values<X, Y>(
+        x_desired: u64,
+        y_desired: u64,
+    ): (u64, u64) acquires LiquidityPool, Config {
+        let (reserves_x, reserves_y) =  get_reserves_size<X, Y>();
+
+        if (reserves_x == 0 && reserves_y == 0) {
+            return (x_desired, y_desired)
+        } else {
+            let y_returned = convert_with_current_price(x_desired, reserves_x, reserves_y);
+            if (y_returned <= y_desired) {
+                return (x_desired, y_returned)
+            } else {
+                let x_returned = convert_with_current_price(y_desired, reserves_y, reserves_x);
+                assert!(x_returned <= x_desired, ERR_OVERLIMIT_X);
+                return (x_returned, y_desired)
+            }
+        }
     }
 }

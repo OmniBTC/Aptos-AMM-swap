@@ -48,24 +48,6 @@ module swap::interface {
         }
     }
 
-    public fun calc_optimal_coin_values<X, Y>(
-        x_desired: u64,
-        y_desired: u64,
-    ): (u64, u64) {
-        let (reserves_x, reserves_y) = implements::get_reserves_size<X, Y>();
-        if (reserves_x == 0 && reserves_y == 0) {
-            return (x_desired, y_desired)
-        } else {
-            let y_returned = reserves_y / reserves_x * x_desired;
-            if (y_returned <= y_desired) {
-                return (x_desired, y_returned)
-            } else {
-                let x_returned = reserves_x / reserves_y * y_desired;
-                return (x_returned, y_desired)
-            }
-        }
-    }
-
     /// Initialize swap
     public entry fun initialize_swap(
         swap_admin: &signer,
@@ -96,32 +78,29 @@ module swap::interface {
         coin_y_val_min: u64,
     ) {
         assert!(!controller::is_emergency(), ERR_EMERGENCY);
-        assert!(coin_x_val >= coin_x_val_min, ERR_INSUFFICIENT_X_AMOUNT);
-        assert!(coin_y_val >= coin_y_val_min, ERR_INSUFFICIENT_Y_AMOUNT);
         assert!(is_order<X, Y>(), ERR_MUST_BE_ORDER);
 
-        let coin_x = coin::withdraw<X>(account, coin_x_val);
-        let coin_y = coin::withdraw<Y>(account, coin_y_val);
-
-        let account_addr = signer::address_of(account);
-        if (!coin::is_account_registered<LP<X, Y>>(account_addr)) {
-            coin::register<LP<X, Y>>(account);
-        };
-
-        let (optimal_x, optimal_y) = calc_optimal_coin_values<X, Y>(
+        let (optimal_x, optimal_y) = implements::calc_optimal_coin_values<X, Y>(
             coin_x_val,
             coin_y_val,
         );
-        let coin_x_opt = coin::extract(&mut coin_x, optimal_x);
-        let coin_y_opt = coin::extract(&mut coin_y, optimal_y);
+
+        assert!(optimal_x >= coin_x_val_min, ERR_INSUFFICIENT_X_AMOUNT);
+        assert!(optimal_y >= coin_y_val_min, ERR_INSUFFICIENT_Y_AMOUNT);
+
+        let coin_x_opt = coin::withdraw<X>(account, optimal_x);
+        let coin_y_opt = coin::withdraw<Y>(account, optimal_y);
+
         let lp_coins = implements::mint<X, Y>(
             coin_x_opt,
             coin_y_opt,
         );
 
+        let account_addr = signer::address_of(account);
+        if (!coin::is_account_registered<LP<X, Y>>(account_addr)) {
+            coin::register<LP<X, Y>>(account);
+        };
         coin::deposit(account_addr, lp_coins);
-        coin::deposit(account_addr, coin_x);
-        coin::deposit(account_addr, coin_y);
     }
 
     public entry fun remove_liquidity<X, Y>(
