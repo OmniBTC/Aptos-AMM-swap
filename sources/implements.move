@@ -79,7 +79,6 @@ module swap::implements {
         // last price y cumulative.
         lp_mint_cap: coin::MintCapability<LP<X, Y>>,
         lp_burn_cap: coin::BurnCapability<LP<X, Y>>,
-        locked: bool,
     }
 
     struct Config has key {
@@ -142,7 +141,6 @@ module swap::implements {
             y_cumulative: 0,
             lp_mint_cap,
             lp_burn_cap,
-            locked: false,
         };
         move_to(&pool_account, pool);
 
@@ -155,7 +153,6 @@ module swap::implements {
         assert!(exists<LiquidityPool<X, Y>>(pool_address), ERR_POOL_DOES_NOT_EXIST);
 
         let pool = borrow_global<LiquidityPool<X, Y>>(pool_address);
-        assert!(pool.locked == false, ERR_POOL_IS_LOCKED);
 
         let x_reserve = coin::value(&pool.coin_x);
         let y_reserve = coin::value(&pool.coin_y);
@@ -210,7 +207,6 @@ module swap::implements {
         assert!(exists<LiquidityPool<X, Y>>(pool_address), ERR_POOL_DOES_NOT_EXIST);
 
         let pool = borrow_global_mut<LiquidityPool<X, Y>>(pool_address);
-        assert!(pool.locked == false, ERR_POOL_IS_LOCKED);
 
         let burned_lp_coins_val = coin::value(&lp_coins);
         let x_reserve_val = coin::value(&pool.coin_x);
@@ -267,7 +263,6 @@ module swap::implements {
         let pool_address = pool_address();
         assert!(exists<LiquidityPool<X, Y>>(pool_address), ERR_POOL_DOES_NOT_EXIST);
         let pool = borrow_global_mut<LiquidityPool<X, Y>>(pool_address);
-        assert!(pool.locked == false, ERR_POOL_IS_LOCKED);
 
         coin::merge(&mut pool.coin_x, coin_in);
 
@@ -296,7 +291,6 @@ module swap::implements {
         let pool_address = pool_address();
         assert!(exists<LiquidityPool<X, Y>>(pool_address), ERR_POOL_DOES_NOT_EXIST);
         let pool = borrow_global_mut<LiquidityPool<X, Y>>(pool_address);
-        assert!(pool.locked == false, ERR_POOL_IS_LOCKED);
 
         coin::merge(&mut pool.coin_y, coin_in);
 
