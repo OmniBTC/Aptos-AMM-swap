@@ -12,6 +12,7 @@ module swap::implements {
 
     use swap::event;
     use swap::init;
+    use swap::math;
 
     friend swap::interface;
     friend swap::controller;
@@ -170,10 +171,22 @@ module swap::implements {
         let x_provided_val = coin::value<X>(&coin_x);
         let y_provided_val = coin::value<Y>(&coin_y);
 
-        let provided_liq_u128 = (x_provided_val as u128) * (y_provided_val as u128) / (U64_MAX as u128);
-        let provided_liq = (provided_liq_u128 as u64);
-
-        assert!(provided_liq > 0, ERR_LIQUID_NOT_ENOUGH);
+        let provided_liq = if (0 == lp_coins_total) {
+        let initial_liq = math::sqrt(x_provided_val) * math::sqrt(y_provided_val);
+        assert!(initial_liq > MINIMAL_LIQUIDITY, ERR_LIQUID_NOT_ENOUGH); 
+            initial_liq - MINIMAL_LIQUIDITY
+        } else {
+            let (reserve_x, reserve_y) = get_reserves_size<X, Y>(); 
+            let x_liq = (lp_coins_total as u128) * (x_provided_val as u128) / (reserve_x as u128);
+            let y_liq = (lp_coins_total as u128) * (y_provided_val  as u128) / (reserve_y as u128);
+            if (x_liq < y_liq) {
+                assert!(x_liq < (U64_MAX as u128), ERR_U64_OVERFLOW);
+                (x_liq as u64)
+            } else {
+                assert!(y_liq < (U64_MAX as u128), ERR_U64_OVERFLOW);
+                (y_liq as u64)
+            }
+        };
 
         let pool = borrow_global_mut<LiquidityPool<X, Y>>(pool_address);
         coin::merge(&mut pool.coin_x, coin_x);
