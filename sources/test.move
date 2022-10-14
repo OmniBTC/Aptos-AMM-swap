@@ -156,7 +156,7 @@ module swap::tests {
     coin::destroy_mint_cap(xbtc_mint_cap);
     coin::destroy_mint_cap(usdt_mint_cap);
 
-    interface::remove_liquidity<USDT, XBTC>(&coin_admin, 2, 1000, 1000);
+    interface::remove_liquidity<USDT, XBTC>(&coin_admin, 200000, 1000, 1000);
   }
 
   fun test_swap() {

@@ -8,12 +8,12 @@ module swap::implements {
   use aptos_framework::coin::{Self, Coin};
   use aptos_framework::account::{Self, SignerCapability};
   use aptos_framework::timestamp;
-  use aptos_framework::debug;
 
   use lp::lp_coin::LP;
   use swap::event;
   use swap::controller;
   use swap::init;
+  use swap::math;
 
   friend swap::interface;
   const ERR_POOL_EXISTS_FOR_PAIR: u64 = 300;
@@ -23,11 +23,13 @@ module swap::implements {
   const ERR_COIN_OUT_NUM_LESS_THAN_EXPECTED_MINIMUM: u64 = 304;
   const ERR_NOT_ENOUGH_PERMISSIONS_TO_INITIALIZE: u64 = 306;
   const ERR_LIQUID_NOT_ENOUGH: u64 = 307;
+  const ERR_U64_OVERFLOW: u64 = 308;
 
   const SYMBOL_PREFIX_LENGTH: u64 = 4;
   const FEE_MULTIPLIER: u64 = 30;
   const FEE_SCALE: u64 = 10000;
   const U64_MAX: u64 = 18446744073709551615;
+  const MINIMAL_LIQUIDITY: u64 = 1000;
 
 
   /// Generate LP coin name and symbol for pair `X`/`Y`.
@@ -130,10 +132,23 @@ module swap::implements {
     let x_provided_val = coin::value<X>(&coin_x);
     let y_provided_val = coin::value<Y>(&coin_y);
 
-    let provided_liq_u128 = (x_provided_val as u128) * (y_provided_val as u128) / (U64_MAX as u128);
-    let provided_liq = (provided_liq_u128 as u64);
-
-    assert!(provided_liq > 0, ERR_LIQUID_NOT_ENOUGH);
+    let lp_coins_total = option::extract(&mut coin::supply<LP<X, Y>>());
+    let provided_liq = if (0 == lp_coins_total) {
+      let initial_liq = math::sqrt(x_provided_val) * math::sqrt(y_provided_val);
+      assert!(initial_liq > MINIMAL_LIQUIDITY, ERR_LIQUID_NOT_ENOUGH); 
+      initial_liq - MINIMAL_LIQUIDITY
+    } else {
+      let (reserve_x, reserve_y) = get_reserves_size<X, Y>(); 
+      let x_liq = (lp_coins_total as u128) * (x_provided_val as u128) / (reserve_x as u128);
+      let y_liq = (lp_coins_total as u128) * (y_provided_val  as u128) / (reserve_y as u128);
+      if (x_liq < y_liq) {
+        assert!(x_liq < (U64_MAX as u128), ERR_U64_OVERFLOW);
+        (x_liq as u64)
+      } else {
+        assert!(y_liq < (U64_MAX as u128), ERR_U64_OVERFLOW);
+        (y_liq as u64)
+      }
+    };
 
     let pool = borrow_global_mut<LiquidityPool<X, Y>>(@swap_pool_account);
     coin::merge(&mut pool.coin_x, coin_x);
@@ -158,9 +173,7 @@ module swap::implements {
     let x_reserve_val = coin::value(&pool.coin_x);
     let y_reserve_val = coin::value(&pool.coin_y);
 
-    debug::print(&1);
     let lp_coins_total = option::extract(&mut coin::supply<LP<X, Y>>());
-    debug::print(&2);
     let x_tmp = ((x_reserve_val * burned_lp_coins_val) as u128);
     let x_to_return_val = ((x_tmp / lp_coins_total) as u64);
     let y_tmp = ((y_reserve_val * burned_lp_coins_val) as u128);
