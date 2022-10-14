@@ -30,6 +30,7 @@ module swap::implements {
     const ERR_OVERLIMIT_X: u64 = 311;
     const ERR_WRONG_AMOUNT: u64 = 312;
     const ERR_WRONG_RESERVE: u64 = 313;
+    const ERR_INCORRECT_SWAP: u64 = 314;
 
     const SYMBOL_PREFIX_LENGTH: u64 = 4;
     const FEE_MULTIPLIER: u64 = 30;
@@ -291,6 +292,20 @@ module swap::implements {
         )
     }
 
+    public fun assert_lp_value_is_increased(
+        old_reserve_in: u64,
+        old_reserve_out: u64,
+        new_reserve_in: u64,
+        new_reserve_out: u64,
+    ) {
+        // never overflow
+        assert!(
+            (old_reserve_in as u128) * (old_reserve_out as u128)
+                < (new_reserve_in as u128) * (new_reserve_out as u128),
+            ERR_INCORRECT_SWAP
+        )
+    }
+
     public(friend) fun swap<X, Y>(
         account: &signer,
         coin_in_value: u64,
@@ -317,6 +332,20 @@ module swap::implements {
 
         let out_swapped = coin::extract(&mut pool.coin_y, coin_out_value);
         coin::deposit(signer::address_of(account), out_swapped);
+
+        let new_reserve_in = coin::value<X>(&pool.coin_x);
+        let new_reserve_out = coin::value<Y>(&pool.coin_y);
+
+        // The division operation truncates the decimal,
+        // Causing coin_out_value to be less than the calculated value.
+        // Thus making the actual value of new_reserve_out.
+        // So lp_value is increased.
+        assert_lp_value_is_increased(
+            reserve_in,
+            reserve_out,
+            new_reserve_in,
+            new_reserve_out
+        );
 
         event::swapped_event<X, Y>(pool_address, coin_in_value, coin_out_value);
         update_oracle<X, Y>(pool_address, pool)
