@@ -10,11 +10,12 @@ module swap::implements {
     use aptos_framework::timestamp;
     use lp::lp_coin::LP;
 
-    use swap::controller;
     use swap::event;
     use swap::init;
 
     friend swap::interface;
+    friend swap::controller;
+
     const ERR_POOL_EXISTS_FOR_PAIR: u64 = 300;
     const ERR_POOL_DOES_NOT_EXIST: u64 = 301;
     const ERR_POOL_IS_LOCKED: u64 = 302;
@@ -78,37 +79,47 @@ module swap::implements {
         locked: bool,
     }
 
-    struct PoolAccountCapability has key { signer_cap: SignerCapability }
-
-    fun pool_account(): signer acquires PoolAccountCapability {
-        assert!(exists<PoolAccountCapability>(@swap), ERR_SWAP_NOT_INITIALIZE);
-
-        let pool_cap = borrow_global<PoolAccountCapability>(@swap);
-        account::create_signer_with_capability(&pool_cap.signer_cap)
+    struct Config has key {
+        pool_cap: SignerCapability,
+        controller: address
     }
 
-    fun pool_address(): address acquires PoolAccountCapability {
-        assert!(exists<PoolAccountCapability>(@swap), ERR_SWAP_NOT_INITIALIZE);
+    fun pool_account(): signer acquires Config {
+        assert!(exists<Config>(@swap), ERR_SWAP_NOT_INITIALIZE);
 
-        let pool_cap = borrow_global<PoolAccountCapability>(@swap);
-        account::get_signer_capability_address(&pool_cap.signer_cap)
+        let config = borrow_global<Config>(@swap);
+        account::create_signer_with_capability(&config.pool_cap)
     }
 
-    public(friend) fun initialize_swap(swap_admin: &signer) {
+    fun pool_address(): address acquires Config {
+        assert!(exists<Config>(@swap), ERR_SWAP_NOT_INITIALIZE);
+
+        let config = borrow_global<Config>(@swap);
+        account::get_signer_capability_address(&config.pool_cap)
+    }
+
+    public(friend) fun controller(): address acquires Config {
+        assert!(exists<Config>(@swap), ERR_SWAP_NOT_INITIALIZE);
+
+        borrow_global<Config>(@swap).controller
+    }
+
+    public(friend) fun initialize_swap(
+        swap_admin: &signer,
+        controller: address,
+    ) {
         assert!(signer::address_of(swap_admin) == @swap, ERR_NOT_ENOUGH_PERMISSIONS_TO_INITIALIZE);
 
-        let signer_cap = init::retrieve_signer_cap(swap_admin);
-        let pool_account = account::create_signer_with_capability(&signer_cap);
+        let pool_cap = init::retrieve_signer_cap(swap_admin);
+        let pool_account = account::create_signer_with_capability(&pool_cap);
 
-        move_to(swap_admin, PoolAccountCapability { signer_cap });
-
-        controller::initialize(swap_admin);
+        move_to(swap_admin, Config { pool_cap, controller });
 
         event::initialize(&pool_account);
     }
 
     // 'X', 'Y' must ordered.
-    public(friend) fun register_pool<X, Y>(account: &signer) acquires PoolAccountCapability {
+    public(friend) fun register_pool<X, Y>(account: &signer) acquires Config {
         let pool_account = pool_account();
         let pool_address = signer::address_of(&pool_account);
 
@@ -135,7 +146,7 @@ module swap::implements {
         event::created_event<X, Y>(pool_address, signer::address_of(account));
     }
 
-    public fun get_reserves_size<X, Y>(): (u64, u64) acquires LiquidityPool, PoolAccountCapability {
+    public fun get_reserves_size<X, Y>(): (u64, u64) acquires LiquidityPool, Config {
         let pool_address = pool_address();
 
         assert!(exists<LiquidityPool<X, Y>>(pool_address), ERR_POOL_DOES_NOT_EXIST);
@@ -152,7 +163,7 @@ module swap::implements {
     public(friend) fun mint<X, Y>(
         coin_x: Coin<X>,
         coin_y: Coin<Y>,
-    ): Coin<LP<X, Y>>  acquires LiquidityPool, PoolAccountCapability {
+    ): Coin<LP<X, Y>>  acquires LiquidityPool, Config {
         let pool_address = pool_address();
         assert!(exists<LiquidityPool<X, Y>>(pool_address), ERR_POOL_DOES_NOT_EXIST);
 
@@ -178,7 +189,7 @@ module swap::implements {
 
     public(friend) fun burn<X, Y>(
         lp_coins: Coin<LP<X, Y>>,
-    ): (Coin<X>, Coin<Y>) acquires LiquidityPool, PoolAccountCapability {
+    ): (Coin<X>, Coin<Y>) acquires LiquidityPool, Config {
         let pool_address = pool_address();
         assert!(exists<LiquidityPool<X, Y>>(pool_address), ERR_POOL_DOES_NOT_EXIST);
 
@@ -213,7 +224,7 @@ module swap::implements {
     public fun get_amout_out<X, Y>(
         amout_in: u64,
         x: bool
-    ): u64 acquires LiquidityPool, PoolAccountCapability {
+    ): u64 acquires LiquidityPool, Config {
         let (reserve_x, reserve_y) = get_reserves_size<X, Y>();
 
         let (fee_pct, fee_scale) = (FEE_MULTIPLIER, FEE_SCALE);
@@ -232,7 +243,7 @@ module swap::implements {
     public(friend) fun swap_x<X, Y>(
         coin_in: Coin<X>,
         coin_out_min_val: u64,
-    ): Coin<Y> acquires LiquidityPool, PoolAccountCapability {
+    ): Coin<Y> acquires LiquidityPool, Config {
         let coin_in_val = coin::value(&coin_in);
         let coin_out_val = get_amout_out<X, Y>(coin_in_val, true);
         assert!(coin_out_val >= coin_out_min_val, ERR_COIN_OUT_NUM_LESS_THAN_EXPECTED_MINIMUM, );
@@ -261,7 +272,7 @@ module swap::implements {
     public(friend) fun swap_y<X, Y>(
         coin_in: Coin<Y>,
         coin_out_min_val: u64,
-    ): Coin<X> acquires LiquidityPool, PoolAccountCapability {
+    ): Coin<X> acquires LiquidityPool, Config {
         let coin_in_val = coin::value(&coin_in);
         let coin_out_val = get_amout_out<X, Y>(coin_in_val, false);
         assert!(coin_out_val >= coin_out_min_val, ERR_COIN_OUT_NUM_LESS_THAN_EXPECTED_MINIMUM, );

@@ -11,8 +11,6 @@ subdir = 'aptos-move/framework/aptos-framework'
 
 [addresses]
 swap = "0xf5bb1482c28e3c600edf4cac9a10511b3d9a8e162d5b64d9741e2a8cb086bb50"
-emergency_admin = "0xf5bb1482c28e3c600edf4cac9a10511b3d9a8e162d5b64d9741e2a8cb086bb50"
-swap_pool_account = "0xee14bdd3f34bf95a01a63dc4efbfb0a072aa1bc8ee6e4d763659a811a9a28b21"
 
 [dependencies.lp]
 local = "./lp"

@@ -106,7 +106,7 @@ module swap::tests {
 
         let (lp_coin_metadata, lp_coin_code) = get_code_and_metadata();
         init::initialize_swap(&coin_admin, lp_coin_metadata, lp_coin_code);
-        interface::initialize_swap(&coin_admin);
+        interface::initialize_swap(&coin_admin, signer::address_of(&coin_admin));
 
         interface::register_pool<XBTC, USDT>(&coin_admin);
     }
@@ -125,7 +125,7 @@ module swap::tests {
 
         let (lp_coin_metadata, lp_coin_code) = get_code_and_metadata();
         init::initialize_swap(&coin_admin, lp_coin_metadata, lp_coin_code);
-        interface::initialize_swap(&coin_admin);
+        interface::initialize_swap(&coin_admin, signer::address_of(&coin_admin));
 
         interface::register_pool<XBTC, USDT>(&coin_admin);
 
@@ -155,7 +155,7 @@ module swap::tests {
 
         let (lp_coin_metadata, lp_coin_code) = get_code_and_metadata();
         init::initialize_swap(&coin_admin, lp_coin_metadata, lp_coin_code);
-        interface::initialize_swap(&coin_admin);
+        interface::initialize_swap(&coin_admin, signer::address_of(&coin_admin));
 
         interface::register_pool<XBTC, USDT>(&coin_admin);
 
@@ -186,7 +186,7 @@ module swap::tests {
 
         let (lp_coin_metadata, lp_coin_code) = get_code_and_metadata();
         init::initialize_swap(&coin_admin, lp_coin_metadata, lp_coin_code);
-        interface::initialize_swap(&coin_admin);
+        interface::initialize_swap(&coin_admin, signer::address_of(&coin_admin));
 
         interface::register_pool<XBTC, USDT>(&coin_admin);
 
