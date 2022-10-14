@@ -25,6 +25,8 @@ module swap::implements {
     const ERR_NOT_ENOUGH_PERMISSIONS_TO_INITIALIZE: u64 = 306;
     const ERR_LIQUID_NOT_ENOUGH: u64 = 307;
     const ERR_SWAP_NOT_INITIALIZE: u64 = 308;
+    const ERR_U64_OVERFLOW: u64 = 309;
+    const MINIMAL_LIQUIDITY: u64 = 310;
 
     const SYMBOL_PREFIX_LENGTH: u64 = 4;
     const FEE_MULTIPLIER: u64 = 30;
@@ -171,6 +173,7 @@ module swap::implements {
         let x_provided_val = coin::value<X>(&coin_x);
         let y_provided_val = coin::value<Y>(&coin_y);
 
+        let lp_coins_total = option::extract(&mut coin::supply<LP<X, Y>>());
         let provided_liq = if (0 == lp_coins_total) {
         let initial_liq = math::sqrt(x_provided_val) * math::sqrt(y_provided_val);
         assert!(initial_liq > MINIMAL_LIQUIDITY, ERR_LIQUID_NOT_ENOUGH); 
