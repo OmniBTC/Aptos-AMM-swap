@@ -70,8 +70,9 @@ module swap::interface {
     public entry fun initialize_swap(
         swap_admin: &signer,
         controller: address,
+        beneficiary: address,
     ) {
-        implements::initialize_swap(swap_admin, controller);
+        implements::initialize_swap(swap_admin, controller, beneficiary);
     }
 
     /// Register a new liquidity pool for 'X'/'Y' pair.

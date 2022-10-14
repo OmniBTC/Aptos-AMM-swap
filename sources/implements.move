@@ -82,7 +82,8 @@ module swap::implements {
 
     struct Config has key {
         pool_cap: SignerCapability,
-        controller: address
+        controller: address,
+        beneficiary: address
     }
 
     fun pool_account(): signer acquires Config {
@@ -99,6 +100,12 @@ module swap::implements {
         account::get_signer_capability_address(&config.pool_cap)
     }
 
+    fun beneficiary(): address acquires Config {
+        assert!(exists<Config>(@swap), ERR_SWAP_NOT_INITIALIZE);
+
+        borrow_global<Config>(@swap).beneficiary
+    }
+
     public(friend) fun controller(): address acquires Config {
         assert!(exists<Config>(@swap), ERR_SWAP_NOT_INITIALIZE);
 
@@ -108,13 +115,14 @@ module swap::implements {
     public(friend) fun initialize_swap(
         swap_admin: &signer,
         controller: address,
+        beneficiary: address,
     ) {
         assert!(signer::address_of(swap_admin) == @swap, ERR_NOT_ENOUGH_PERMISSIONS_TO_INITIALIZE);
 
         let pool_cap = init::retrieve_signer_cap(swap_admin);
         let pool_account = account::create_signer_with_capability(&pool_cap);
 
-        move_to(swap_admin, Config { pool_cap, controller });
+        move_to(swap_admin, Config { pool_cap, controller, beneficiary });
 
         event::initialize(&pool_account);
     }
@@ -172,10 +180,10 @@ module swap::implements {
         let lp_coins_total = option::extract(&mut coin::supply<LP<X, Y>>());
         let provided_liq = if (0 == lp_coins_total) {
         let initial_liq = math::sqrt(x_provided_val) * math::sqrt(y_provided_val);
-        assert!(initial_liq > MINIMAL_LIQUIDITY, ERR_LIQUID_NOT_ENOUGH); 
+        assert!(initial_liq > MINIMAL_LIQUIDITY, ERR_LIQUID_NOT_ENOUGH);
             initial_liq - MINIMAL_LIQUIDITY
         } else {
-            let (reserve_x, reserve_y) = get_reserves_size<X, Y>(); 
+            let (reserve_x, reserve_y) = get_reserves_size<X, Y>();
             let x_liq = (lp_coins_total as u128) * (x_provided_val as u128) / (reserve_x as u128);
             let y_liq = (lp_coins_total as u128) * (y_provided_val  as u128) / (reserve_y as u128);
             if (x_liq < y_liq) {
@@ -270,7 +278,9 @@ module swap::implements {
         let fee_multiplier = FEE_MULTIPLIER / 5; // 20% fee to swap fundation.
         let x_fee_val = coin_in_val * fee_multiplier / FEE_SCALE;
         let x_in = coin::extract(&mut pool.coin_x, x_fee_val);
-        coin::deposit(pool_address, x_in);
+
+        coin::deposit(beneficiary(), x_in);
+
         event::swapped_event<X, Y>(pool_address, coin_in_val, 0, 0, coin_out_val);
         update_oracle<X, Y>(pool_address, pool);
 
@@ -296,7 +306,9 @@ module swap::implements {
         let fee_multiplier = FEE_MULTIPLIER / 5; // 20% fee to swap fundation.
         let y_fee_val = coin_in_val * fee_multiplier / FEE_SCALE;
         let y_in = coin::extract(&mut pool.coin_y, y_fee_val);
-        coin::deposit(pool_address, y_in);
+
+        coin::deposit(beneficiary(), y_in);
+
         event::swapped_event<X, Y>(pool_address, 0, coin_out_val, coin_in_val, 0);
         update_oracle<X, Y>(pool_address, pool);
 
