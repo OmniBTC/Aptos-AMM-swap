@@ -38,8 +38,6 @@ module swap::event {
         coin_x: String,
         coin_y: String,
         x_in: u64,
-        x_out: u64,
-        y_in: u64,
         y_out: u64,
     }
 
@@ -140,8 +138,6 @@ module swap::event {
     public(friend) fun swapped_event<X, Y>(
         pool_address: address,
         x_in: u64,
-        x_out: u64,
-        y_in: u64,
         y_out: u64
     ) acquires EventsStore {
         let event_store = borrow_global_mut<EventsStore>(pool_address);
@@ -152,8 +148,6 @@ module swap::event {
                 coin_x: type_name<X>(),
                 coin_y: type_name<Y>(),
                 x_in,
-                x_out,
-                y_in,
                 y_out,
             }
         )

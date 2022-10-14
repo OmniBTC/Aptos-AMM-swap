@@ -305,21 +305,21 @@ module swap::implements {
         assert!(exists<LiquidityPool<X, Y>>(pool_address), ERR_POOL_DOES_NOT_EXIST);
         let pool = borrow_global_mut<LiquidityPool<X, Y>>(pool_address);
 
+        let fee_multiplier = FEE_MULTIPLIER / 5; // 20% fee to swap fundation.
+        let fee_value = coin_in_value * fee_multiplier / FEE_SCALE;
+
         let coin_in = coin::withdraw<X>(account, coin_in_value);
+
+        let fee_in = coin::extract(&mut coin_in, fee_value);
+        coin::deposit(beneficiary(), fee_in);
+
         coin::merge(&mut pool.coin_x, coin_in);
 
         let out_swapped = coin::extract(&mut pool.coin_y, coin_out_value);
+        coin::deposit(signer::address_of(account), out_swapped);
 
-        let fee_multiplier = FEE_MULTIPLIER / 5; // 20% fee to swap fundation.
-        let fee_value = coin_in_value * fee_multiplier / FEE_SCALE;
-        let fee_in = coin::extract(&mut pool.coin_x, fee_value);
-
-        coin::deposit(beneficiary(), fee_in);
-
-        event::swapped_event<X, Y>(pool_address, coin_in_value, 0, 0, coin_out_value);
-        update_oracle<X, Y>(pool_address, pool);
-
-        coin::deposit(signer::address_of(account), out_swapped)
+        event::swapped_event<X, Y>(pool_address, coin_in_value, coin_out_value);
+        update_oracle<X, Y>(pool_address, pool)
     }
 
     fun update_oracle<X, Y>(
