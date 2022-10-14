@@ -124,23 +124,17 @@ module swap::interface {
 
     public entry fun swap<X, Y>(
         account: &signer,
-        coin_val: u64,
-        coin_out_min_val: u64,
+        coin_in_value: u64,
+        coin_out_min_value: u64,
     ) {
         assert!(!controller::is_emergency(), ERR_EMERGENCY);
 
-        let coin_x = coin::withdraw<X>(account, coin_val);
-
-        let coin_y;
         if (is_order<X, Y>()) {
-            coin_y = implements::swap_x<X, Y>(
-                coin_x, coin_out_min_val, );
+            let (reserve_x, reserve_y) = implements::get_reserves_size<X, Y>();
+            implements::swap<X, Y>(account, coin_in_value, coin_out_min_value, reserve_x, reserve_y);
         } else {
-            coin_y = implements::swap_y<Y, X>(
-                coin_x, coin_out_min_val, );
+            let (reserve_y, reserve_x) = implements::get_reserves_size<Y, X>();
+            implements::swap<Y, X>(account, coin_in_value, coin_out_min_value, reserve_y, reserve_x);
         };
-
-        let account_addr = signer::address_of(account);
-        coin::deposit(account_addr, coin_y);
     }
 }
