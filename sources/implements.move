@@ -6,7 +6,6 @@ module swap::implements {
 
     use aptos_framework::account::{Self, SignerCapability};
     use aptos_framework::coin::{Self, Coin};
-    use aptos_framework::debug;
     use aptos_framework::timestamp;
     use lp::lp_coin::LP;
 
@@ -130,7 +129,7 @@ module swap::implements {
         let (lp_name, lp_symbol) = generate_lp_name_and_symbol<X, Y>();
 
         let (lp_burn_cap, lp_freeze_cap, lp_mint_cap) =
-            coin::initialize<LP<X, Y>>(&pool_account, lp_name, lp_symbol, 6, true);
+            coin::initialize<LP<X, Y>>(&pool_account, lp_name, lp_symbol, 8, true);
         coin::destroy_freeze_cap(lp_freeze_cap);
 
         let pool = LiquidityPool<X, Y> {
@@ -212,9 +211,7 @@ module swap::implements {
         let x_reserve_val = coin::value(&pool.coin_x);
         let y_reserve_val = coin::value(&pool.coin_y);
 
-        debug::print(&1);
         let lp_coins_total = option::extract(&mut coin::supply<LP<X, Y>>());
-        debug::print(&2);
         let x_tmp = ((x_reserve_val * burned_lp_coins_val) as u128);
         let x_to_return_val = ((x_tmp / lp_coins_total) as u64);
         let y_tmp = ((y_reserve_val * burned_lp_coins_val) as u128);
