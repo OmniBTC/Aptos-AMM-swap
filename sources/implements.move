@@ -152,7 +152,9 @@ module swap::implements {
     }
 
     // 'X', 'Y' must ordered.
-    public(friend) fun register_pool<X, Y>(account: &signer) acquires Config {
+    public(friend) fun register_pool<X, Y>(
+        account: &signer
+    ) acquires Config {
         let pool_account = pool_account();
         let pool_address = signer::address_of(&pool_account);
         let fee_account = fee_account();
@@ -388,7 +390,11 @@ module swap::implements {
     /// * `coin_in` - amount to swap.
     /// * `reserve_in` - reserves of coin to swap.
     /// * `reserve_out` - reserves of coin to get.
-    public fun convert_with_current_price(coin_in: u64, reserve_in: u64, reserve_out: u64): u64 {
+    public fun convert_with_current_price(
+        coin_in: u64,
+        reserve_in: u64,
+        reserve_out: u64
+    ): u64 {
         assert!(coin_in > 0, ERR_WRONG_AMOUNT);
         assert!(reserve_in > 0 && reserve_out > 0, ERR_WRONG_RESERVE);
 

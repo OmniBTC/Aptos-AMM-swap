@@ -1,6 +1,6 @@
 // Copyright 2022 OmniBTC Authors. Licensed under Apache-2.0 License.
 #[test_only]
-module swap::tests {
+module swap::interface_tests {
     use std::signer;
     use std::string::utf8;
 

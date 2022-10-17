@@ -8,7 +8,9 @@ module swap::beneficiary {
     const ERR_EMERGENCY: u64 = 401;
 
     /// Transfers fee coin to the beneficiary.
-    public entry fun withdraw<Coin>(account: &signer) {
+    public entry fun withdraw<Coin>(
+        account: &signer
+    ) {
         assert!(!is_emergency(), ERR_EMERGENCY);
         assert!(beneficiary() == signer::address_of(account), ERR_NO_PERMISSIONS);
 

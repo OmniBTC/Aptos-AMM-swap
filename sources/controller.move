@@ -9,7 +9,9 @@ module swap::controller {
     const ERR_ALREADY_PAUSE: u64 = 201;
     const ERR_NOT_PAUSE: u64 = 202;
 
-    public entry fun pause(account: &signer) {
+    public entry fun pause(
+        account: &signer
+    ) {
         let controller = controller();
 
         assert!(exists<Emergency>(controller), ERR_ALREADY_PAUSE);
@@ -18,7 +20,9 @@ module swap::controller {
         move_to(account, Emergency {});
     }
 
-    public entry fun resume(account: &signer) acquires Emergency {
+    public entry fun resume(
+        account: &signer
+    ) acquires Emergency {
         let controller = controller();
 
         assert!(!exists<Emergency>(controller), ERR_NOT_PAUSE);
