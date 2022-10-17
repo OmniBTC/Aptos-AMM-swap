@@ -62,4 +62,16 @@ module swap::math {
         assert!(!(r > (U64_MAX as u128)), ERR_U64_OVERFLOW);
         (r as u64)
     }
+
+    /// Implements: `x` * `y` / `z`.
+    public fun mul_div_u128(
+        x: u128,
+        y: u128,
+        z: u128
+    ): u64 {
+        assert!(z != 0, ERR_DIVIDE_BY_ZERO);
+        let r = x * y / z;
+        assert!(!(r > (U64_MAX as u128)), ERR_U64_OVERFLOW);
+        (r as u64)
+    }
 }

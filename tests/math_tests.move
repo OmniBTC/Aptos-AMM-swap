@@ -2,6 +2,7 @@
 #[test_only]
 module swap::math_tests {
     const MAX_u64: u64 = 18446744073709551615;
+    const MAX_u128: u128 = 340282366920938463463374607431768211455;
 
     #[test]
     fun test_mul_div() {
@@ -12,14 +13,33 @@ module swap::math_tests {
         assert!(a == 20, 1);
     }
 
+    #[test]
+    fun test_mul_div_u128() {
+        let a = swap::math::mul_div_u128((MAX_u64 as u128), (MAX_u64 as u128), (MAX_u64 as u128));
+        assert!(a == MAX_u64, 0);
+
+        a = swap::math::mul_div_u128(100, 20, 100);
+        assert!(a == 20, 1);
+    }
+
     #[test, expected_failure(abort_code = 500)]
     fun test_div_zero() {
         swap::math::mul_div(MAX_u64, MAX_u64, 0);
     }
 
+    #[test, expected_failure(abort_code = 500)]
+    fun test_div_u128_zero() {
+        swap::math::mul_div_u128(MAX_u128, MAX_u128, 0);
+    }
+
     #[test, expected_failure(abort_code = 501)]
     fun test_mul_div_overflow() {
         swap::math::mul_div(MAX_u64, MAX_u64, 1);
+    }
+
+    #[test, expected_failure(abort_code = 501)]
+    fun test_mul_div_u128_overflow() {
+        swap::math::mul_div_u128(MAX_u128, 1, 1);
     }
 
     #[test]

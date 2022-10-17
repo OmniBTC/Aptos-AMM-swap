@@ -26,17 +26,17 @@ module swap::implements {
     const ERR_LIQUID_NOT_ENOUGH: u64 = 307;
     const ERR_SWAP_NOT_INITIALIZE: u64 = 308;
     const ERR_U64_OVERFLOW: u64 = 309;
-    const MINIMAL_LIQUIDITY: u64 = 310;
-    const ERR_OVERLIMIT_X: u64 = 311;
-    const ERR_WRONG_AMOUNT: u64 = 312;
-    const ERR_WRONG_RESERVE: u64 = 313;
-    const ERR_INCORRECT_SWAP: u64 = 314;
+    const ERR_OVERLIMIT_X: u64 = 310;
+    const ERR_WRONG_AMOUNT: u64 = 311;
+    const ERR_WRONG_RESERVE: u64 = 312;
+    const ERR_INCORRECT_SWAP: u64 = 313;
 
     const SYMBOL_PREFIX_LENGTH: u64 = 4;
     const FEE_MULTIPLIER: u64 = 30;
     const FEE_SCALE: u64 = 10000;
     const U64_MAX: u64 = 18446744073709551615;
-
+    /// Minimal liquidity.
+    const MINIMAL_LIQUIDITY: u64 = 1000;
 
     /// Generate LP coin name and symbol for pair `X`/`Y`.
     /// ```
@@ -151,26 +151,6 @@ module swap::implements {
         event::initialize(&pool_account);
     }
 
-    #[test_only]
-    public fun initialize_swap_for_test(
-        swap_admin: &signer,
-        controller: address,
-        beneficiary: address,
-    ) {
-        let (pool_account, pool_cap) = account::create_resource_account(
-            swap_admin,
-            b"swap_account_seed"
-        );
-        let (_signer, fee_cap) = account::create_resource_account(
-            swap_admin,
-            b"fee_account_seed"
-        );
-
-        move_to(swap_admin, Config { pool_cap, fee_cap, controller, beneficiary });
-
-        event::initialize(&pool_account);
-    }
-
     // 'X', 'Y' must ordered.
     public(friend) fun register_pool<X, Y>(
         account: &signer
@@ -235,13 +215,13 @@ module swap::implements {
 
         let lp_coins_total = option::extract(&mut coin::supply<LP<X, Y>>());
         let provided_liq = if (0 == lp_coins_total) {
-        let initial_liq = math::sqrt(x_provided_val) * math::sqrt(y_provided_val);
-        assert!(initial_liq > MINIMAL_LIQUIDITY, ERR_LIQUID_NOT_ENOUGH);
+            let initial_liq = math::sqrt(x_provided_val) * math::sqrt(y_provided_val);
+            assert!(initial_liq > MINIMAL_LIQUIDITY, ERR_LIQUID_NOT_ENOUGH);
             initial_liq - MINIMAL_LIQUIDITY
         } else {
             let (reserve_x, reserve_y) = get_reserves_size<X, Y>();
             let x_liq = (lp_coins_total as u128) * (x_provided_val as u128) / (reserve_x as u128);
-            let y_liq = (lp_coins_total as u128) * (y_provided_val  as u128) / (reserve_y as u128);
+            let y_liq = (lp_coins_total as u128) * (y_provided_val as u128) / (reserve_y as u128);
             if (x_liq < y_liq) {
                 assert!(x_liq < (U64_MAX as u128), ERR_U64_OVERFLOW);
                 (x_liq as u64)
@@ -276,10 +256,17 @@ module swap::implements {
         let y_reserve_val = coin::value(&pool.coin_y);
 
         let lp_coins_total = option::extract(&mut coin::supply<LP<X, Y>>());
-        let x_tmp = ((x_reserve_val * burned_lp_coins_val) as u128);
-        let x_to_return_val = ((x_tmp / lp_coins_total) as u64);
-        let y_tmp = ((y_reserve_val * burned_lp_coins_val) as u128);
-        let y_to_return_val = ((y_tmp / lp_coins_total) as u64);
+        let x_to_return_val = math::mul_div_u128(
+            (x_reserve_val as u128),
+            (burned_lp_coins_val as u128),
+            lp_coins_total
+        );
+        let y_to_return_val = math::mul_div_u128(
+            (y_reserve_val as u128),
+            (burned_lp_coins_val as u128),
+            lp_coins_total
+        );
+
         assert!(x_to_return_val > 0 && y_to_return_val > 0, ERR_INCORRECT_BURN_VALUES);
 
         let x_coin_to_return = coin::extract(&mut pool.coin_x, x_to_return_val);
@@ -335,15 +322,16 @@ module swap::implements {
         reserve_in: u64,
         reserve_out: u64,
     ) acquires LiquidityPool, Config {
-        let coin_out_value = get_amount_out(coin_in_value, reserve_in, reserve_out);
+        let fee_multiplier = FEE_MULTIPLIER / 5; // 20% fee to swap fundation.
+        let fee_value = coin_in_value * fee_multiplier / FEE_SCALE;
+        let coin_in_after_fee = math::mul_div(coin_in_value, FEE_MULTIPLIER, FEE_SCALE);
+
+        let coin_out_value = get_amount_out(coin_in_value - coin_in_after_fee, reserve_in, reserve_out);
         assert!(coin_out_value >= coin_out_min_value, ERR_COIN_OUT_NUM_LESS_THAN_EXPECTED_MINIMUM, );
 
         let pool_address = pool_address();
         assert!(exists<LiquidityPool<X, Y>>(pool_address), ERR_POOL_DOES_NOT_EXIST);
         let pool = borrow_global_mut<LiquidityPool<X, Y>>(pool_address);
-
-        let fee_multiplier = FEE_MULTIPLIER / 5; // 20% fee to swap fundation.
-        let fee_value = coin_in_value * fee_multiplier / FEE_SCALE;
 
         let coin_in = coin::withdraw<X>(account, coin_in_value);
 
@@ -432,7 +420,7 @@ module swap::implements {
         x_desired: u64,
         y_desired: u64,
     ): (u64, u64) acquires LiquidityPool, Config {
-        let (reserves_x, reserves_y) =  get_reserves_size<X, Y>();
+        let (reserves_x, reserves_y) = get_reserves_size<X, Y>();
 
         if (reserves_x == 0 && reserves_y == 0) {
             return (x_desired, y_desired)
@@ -446,5 +434,25 @@ module swap::implements {
                 return (x_returned, y_desired)
             }
         }
+    }
+
+    #[test_only]
+    public fun initialize_swap_for_test(
+        swap_admin: &signer,
+        controller: address,
+        beneficiary: address,
+    ) {
+        let (pool_account, pool_cap) = account::create_resource_account(
+            swap_admin,
+            b"swap_account_seed"
+        );
+        let (_signer, fee_cap) = account::create_resource_account(
+            swap_admin,
+            b"fee_account_seed"
+        );
+
+        move_to(swap_admin, Config { pool_cap, fee_cap, controller, beneficiary });
+
+        event::initialize(&pool_account);
     }
 }
