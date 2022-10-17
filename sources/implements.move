@@ -143,7 +143,27 @@ module swap::implements {
         let pool_account = account::create_signer_with_capability(&pool_cap);
         let (_signer, fee_cap) = account::create_resource_account(
             swap_admin,
-            b"controller_account_seed"
+            b"fee_account_seed"
+        );
+
+        move_to(swap_admin, Config { pool_cap, fee_cap, controller, beneficiary });
+
+        event::initialize(&pool_account);
+    }
+
+    #[test_only]
+    public fun initialize_swap_for_test(
+        swap_admin: &signer,
+        controller: address,
+        beneficiary: address,
+    ) {
+        let (pool_account, pool_cap) = account::create_resource_account(
+            swap_admin,
+            b"swap_account_seed"
+        );
+        let (_signer, fee_cap) = account::create_resource_account(
+            swap_admin,
+            b"fee_account_seed"
         );
 
         move_to(swap_admin, Config { pool_cap, fee_cap, controller, beneficiary });

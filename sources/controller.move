@@ -14,7 +14,7 @@ module swap::controller {
     ) {
         let controller = controller();
 
-        assert!(exists<Emergency>(controller), ERR_ALREADY_PAUSE);
+        assert!(!exists<Emergency>(controller), ERR_ALREADY_PAUSE);
         assert!(controller == signer::address_of(account), ERR_NO_PERMISSIONS);
 
         move_to(account, Emergency {});
@@ -25,7 +25,7 @@ module swap::controller {
     ) acquires Emergency {
         let controller = controller();
 
-        assert!(!exists<Emergency>(controller), ERR_NOT_PAUSE);
+        assert!(exists<Emergency>(controller), ERR_NOT_PAUSE);
         assert!(controller == signer::address_of(account), ERR_NO_PERMISSIONS);
 
         let Emergency {} = move_from<Emergency>(signer::address_of(account));

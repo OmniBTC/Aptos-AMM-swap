@@ -16,7 +16,10 @@ module swap::init {
         assert!(signer::address_of(swap_admin) == @swap, ERR_NOT_ENOUGH_PERMISSIONS);
 
         // see test_swap_pool_account
-        let (lp_acc, signer_cap) = account::create_resource_account(swap_admin, b"swap_account_seed");
+        let (lp_acc, signer_cap) = account::create_resource_account(
+            swap_admin,
+            b"swap_account_seed"
+        );
 
         aptos_framework::code::publish_package_txn(&lp_acc, metadata, vector[code]);
 
