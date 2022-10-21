@@ -15,6 +15,8 @@ module swap::interface_tests {
     use swap::interface;
     use swap::math;
 
+    const MAX_U64: u64 = 18446744073709551615;
+
     struct XBTC {}
 
     struct USDT {}
@@ -422,6 +424,79 @@ module swap::interface_tests {
         assert!(
             coin::balance<XBTC>(user) == xbtc_val - xbtc_val / 100 + expected_xbtc,
             coin::balance<XBTC>(user)
+        );
+    }
+
+    #[test(user = @0x123)]
+    fun test_get_amount_out_does_not_overflow_on_liquidity_close_to_max_pool_value(
+        user: address
+    ) {
+        let user_account = account::create_account_for_test(user);
+        let usdt_val = MAX_U64 / 20000;
+        let xbtc_val = MAX_U64 / 20000;
+
+        register_pool_with_liquidity(
+            &user_account,
+            usdt_val,
+            xbtc_val
+        );
+
+        interface::add_liquidity<USDT, XBTC>(
+            &user_account,
+            usdt_val,
+            1,
+            xbtc_val,
+            1
+        );
+    }
+
+    #[test(user = @0x123)]
+    fun test_get_amount_out_does_not_overflow_on_coin_in_close_to_u64_max(
+        user: address
+    ) {
+        let user_account = account::create_account_for_test(user);
+        let usdt_val = MAX_U64 / 20000;
+        let xbtc_val = MAX_U64 / 20000;
+        let max_usdt = MAX_U64;
+
+        register_pool_with_liquidity(
+            &user_account,
+            usdt_val,
+            xbtc_val
+        );
+
+        interface::add_liquidity<USDT, XBTC>(
+            &user_account,
+            usdt_val,
+            1,
+            xbtc_val,
+            1
+        );
+
+        let _lp_balance = coin::balance<LP<USDT,XBTC>>(user);
+
+        let (reserve_usdt, reserve_xbtc) = implements::get_reserves_size<USDT, XBTC>();
+
+        let _expected_xbtc = implements::get_amount_out(
+            (math::mul_div(max_usdt, 997, 1000)),
+            reserve_usdt,
+            reserve_xbtc
+        );
+    }
+
+    #[test(user = @0x123)]
+    #[expected_failure(abort_code = 314)]
+    fun test_add_liquidity_aborts_if_pool_has_full(
+        user: address
+    ) {
+        let user_account = account::create_account_for_test(user);
+        let usdt_val = MAX_U64 / 10000;
+        let xbtc_val = MAX_U64 / 10000;
+
+        register_pool_with_liquidity(
+            &user_account,
+            usdt_val,
+            xbtc_val
         );
     }
 }

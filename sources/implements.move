@@ -30,11 +30,16 @@ module swap::implements {
     const ERR_WRONG_AMOUNT: u64 = 311;
     const ERR_WRONG_RESERVE: u64 = 312;
     const ERR_INCORRECT_SWAP: u64 = 313;
+    const ERR_POOL_FULL: u64 = 314;
 
     const SYMBOL_PREFIX_LENGTH: u64 = 4;
     const FEE_MULTIPLIER: u64 = 30;
     const FEE_SCALE: u64 = 10000;
     const U64_MAX: u64 = 18446744073709551615;
+    /// The max value of coin_x or coin_y in a pool.
+    /// U64 MAX / FEE_SCALE
+    const MAX_POOL_VALUE: u64 = 18446744073709551615 / 10000;
+
     /// Minimal liquidity.
     const MINIMAL_LIQUIDITY: u64 = 1000;
 
@@ -235,6 +240,9 @@ module swap::implements {
         coin::merge(&mut pool.coin_x, coin_x);
         coin::merge(&mut pool.coin_y, coin_y);
 
+        assert!(coin::value(&pool.coin_x) < MAX_POOL_VALUE, ERR_POOL_FULL);
+        assert!(coin::value(&pool.coin_y) < MAX_POOL_VALUE, ERR_POOL_FULL);
+
         event::added_event<X, Y>(pool_address, x_provided_val, y_provided_val, provided_liq);
         update_oracle<X, Y>(pool_address, pool);
 
@@ -288,15 +296,17 @@ module swap::implements {
     ): u64 {
         let fee_multiplier = FEE_SCALE - FEE_MULTIPLIER;
 
-        let coin_in_val_after_fees = coin_in * fee_multiplier;
+        let coin_in_val_after_fees = (coin_in as u128) * (fee_multiplier as u128);
+
         // reserve_in size after adding coin_in (scaled to 1000)
-        let new_reserve_in = (reserve_in * FEE_SCALE) + coin_in_val_after_fees;
+        let new_reserve_in = ((reserve_in as u128) * (FEE_SCALE as u128))
+            + coin_in_val_after_fees;
 
         // Multiply coin_in by the current exchange rate:
         // current_exchange_rate = reserve_out / reserve_in
         // amount_in_after_fees * current_exchange_rate -> amount_out
-        math::mul_div(coin_in_val_after_fees, // scaled to 1000
-            reserve_out,
+        math::mul_div_u128(coin_in_val_after_fees, // scaled to 1000
+            (reserve_out as u128),
             new_reserve_in  // scaled to 1000
         )
     }
@@ -323,7 +333,7 @@ module swap::implements {
         reserve_out: u64,
     ) acquires LiquidityPool, Config {
         let fee_multiplier = FEE_MULTIPLIER / 5; // 20% fee to swap fundation.
-        let fee_value = coin_in_value * fee_multiplier / FEE_SCALE;
+        let fee_value = math::mul_div(coin_in_value, fee_multiplier, FEE_SCALE);
         let coin_in_after_fee = coin_in_value - math::mul_div(coin_in_value, FEE_MULTIPLIER, FEE_SCALE);
 
         let coin_out_value = get_amount_out(coin_in_after_fee, reserve_in, reserve_out);
