@@ -336,7 +336,7 @@ module swap::implements {
         let coin_in = coin::withdraw<X>(account, coin_in_value);
 
         let fee_in = coin::extract(&mut coin_in, fee_value);
-        coin::deposit(beneficiary(), fee_in);
+        coin::deposit(fee_address(), fee_in);
 
         coin::merge(&mut pool.coin_x, coin_in);
 
