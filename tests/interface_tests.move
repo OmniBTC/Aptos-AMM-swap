@@ -499,4 +499,57 @@ module swap::interface_tests {
             xbtc_val
         );
     }
+
+    #[test(user = @0x123)]
+    fun test_swap_with_value_should_ok(
+        user: address
+    ) {
+        let user_account = account::create_account_for_test(user);
+        let usdt_val = 184456367;
+        let xbtc_val = 70100;
+
+        register_pool_with_liquidity(
+            &user_account,
+            usdt_val,
+            xbtc_val,
+        );
+
+        let (reserve_usdt, reserve_xbtc) = implements::get_reserves_size<USDT, XBTC>();
+        assert!(184456367 == reserve_usdt, reserve_usdt);
+        assert!(70100 == reserve_xbtc, reserve_xbtc);
+
+        let expected_btc = implements::get_amount_out(
+            usdt_val - math::mul_div(usdt_val, 3, 1000),
+            reserve_usdt,
+            reserve_xbtc
+        );
+        assert!(34944 == expected_btc, expected_btc);
+
+        interface::swap<USDT, XBTC>(
+            &user_account,
+            usdt_val,
+            1
+        );
+        let (reserve_usdt, reserve_xbtc) = implements::get_reserves_size<USDT, XBTC>();
+        assert!(368802061 == reserve_usdt, reserve_usdt);
+        assert!(35156 == reserve_xbtc, reserve_xbtc);
+
+        assert!(coin::balance<XBTC>(user) == xbtc_val + expected_btc, coin::balance<XBTC>(user));
+        assert!(coin::balance<USDT>(user) == 0, coin::balance<USDT>(user));
+
+        let expected_usdt = implements::get_amount_out(
+            xbtc_val - math::mul_div(xbtc_val, 3, 1000),
+            reserve_xbtc,
+            reserve_usdt
+        );
+        assert!(245127326 == expected_usdt, expected_usdt);
+
+        interface::swap<XBTC, USDT>(
+            &user_account,
+            xbtc_val,
+            1
+        );
+        assert!(coin::balance<XBTC>(user) == expected_btc, coin::balance<XBTC>(user));
+        assert!(expected_usdt == coin::balance<USDT>(user), coin::balance<USDT>(user));
+    }
 }

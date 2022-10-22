@@ -131,10 +131,10 @@ module swap::interface {
 
         if (is_order<X, Y>()) {
             let (reserve_x, reserve_y) = implements::get_reserves_size<X, Y>();
-            implements::swap<X, Y>(account, coin_in_value, coin_out_min_value, reserve_x, reserve_y);
+            implements::swap_out_y<X, Y>(account, coin_in_value, coin_out_min_value, reserve_x, reserve_y);
         } else {
             let (reserve_y, reserve_x) = implements::get_reserves_size<Y, X>();
-            implements::swap<Y, X>(account, coin_in_value, coin_out_min_value, reserve_y, reserve_x);
+            implements::swap_out_x<Y, X>(account, coin_in_value, coin_out_min_value, reserve_x, reserve_y);
         };
     }
 }
