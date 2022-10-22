@@ -534,17 +534,21 @@ module swap::interface_tests {
         assert!(368802061 == reserve_usdt, 4);
         assert!(35156 == reserve_xbtc, 5);
 
+        assert!(coin::balance<XBTC>(user) > xbtc_val, 6);
+        assert!(coin::balance<USDT>(user) == 0, 7);
+
         let expected_usdt = implements::get_amount_out(
-            (xbtc_val / 100 * 997 / 1000),
+            (xbtc_val * 997 / 1000),
             reserve_xbtc,
             reserve_usdt
         );
-        assert!(7158658 == expected_usdt, 6);
+        assert!(245126150 == expected_usdt, expected_usdt);
 
         interface::swap<XBTC, USDT>(
             &user_account,
             xbtc_val,
             1
         );
+        assert!(245127326 == coin::balance<USDT>(user), coin::balance<USDT>(user));
     }
 }

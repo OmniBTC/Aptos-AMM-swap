@@ -31,6 +31,7 @@ module swap::implements {
     const ERR_WRONG_RESERVE: u64 = 312;
     const ERR_INCORRECT_SWAP: u64 = 313;
     const ERR_POOL_FULL: u64 = 314;
+    const ERR_DEPRECATED_FUNCTION: u64 = 315;
 
     const SYMBOL_PREFIX_LENGTH: u64 = 4;
     const FEE_MULTIPLIER: u64 = 30;
@@ -326,6 +327,16 @@ module swap::implements {
     }
 
     public(friend) fun swap<X, Y>(
+        _account: &signer,
+        _coin_in_value: u64,
+        _coin_out_min_value: u64,
+        _reserve_in: u64,
+        _reserve_out: u64,
+    ) {
+        abort ERR_DEPRECATED_FUNCTION
+    }
+
+    public(friend) fun swap_out_y<X, Y>(
         account: &signer,
         coin_in_value: u64,
         coin_out_min_value: u64,
@@ -355,6 +366,52 @@ module swap::implements {
 
         let new_reserve_in = coin::value<X>(&pool.coin_x);
         let new_reserve_out = coin::value<Y>(&pool.coin_y);
+
+        // The division operation truncates the decimal,
+        // Causing coin_out_value to be less than the calculated value.
+        // Thus making the actual value of new_reserve_out.
+        // So lp_value is increased.
+        assert_lp_value_is_increased(
+            reserve_in,
+            reserve_out,
+            new_reserve_in,
+            new_reserve_out
+        );
+
+        event::swapped_event<X, Y>(pool_address, coin_in_value, coin_out_value);
+        update_oracle<X, Y>(pool_address, pool)
+    }
+
+    public(friend) fun swap_out_x<X, Y>(
+        account: &signer,
+        coin_in_value: u64,
+        coin_out_min_value: u64,
+        reserve_in: u64,
+        reserve_out: u64,
+    ) acquires LiquidityPool, Config {
+        let fee_multiplier = FEE_MULTIPLIER / 5; // 20% fee to swap fundation.
+        let fee_value = math::mul_div(coin_in_value, fee_multiplier, FEE_SCALE);
+        let coin_in_after_fee = coin_in_value - math::mul_div(coin_in_value, FEE_MULTIPLIER, FEE_SCALE);
+
+        let coin_out_value = get_amount_out(coin_in_after_fee, reserve_in, reserve_out);
+        assert!(coin_out_value >= coin_out_min_value, ERR_COIN_OUT_NUM_LESS_THAN_EXPECTED_MINIMUM, );
+
+        let pool_address = pool_address();
+        assert!(exists<LiquidityPool<X, Y>>(pool_address), ERR_POOL_DOES_NOT_EXIST);
+        let pool = borrow_global_mut<LiquidityPool<X, Y>>(pool_address);
+
+        let coin_in = coin::withdraw<Y>(account, coin_in_value);
+
+        let fee_in = coin::extract(&mut coin_in, fee_value);
+        coin::deposit(fee_address(), fee_in);
+
+        coin::merge(&mut pool.coin_y, coin_in);
+
+        let out_swapped = coin::extract(&mut pool.coin_x, coin_out_value);
+        coin::deposit(signer::address_of(account), out_swapped);
+
+        let new_reserve_in = coin::value<Y>(&pool.coin_y);
+        let new_reserve_out = coin::value<X>(&pool.coin_x);
 
         // The division operation truncates the decimal,
         // Causing coin_out_value to be less than the calculated value.
