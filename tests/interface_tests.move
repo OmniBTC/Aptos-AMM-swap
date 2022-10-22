@@ -515,15 +515,15 @@ module swap::interface_tests {
         );
 
         let (reserve_usdt, reserve_xbtc) = implements::get_reserves_size<USDT, XBTC>();
-        assert!(184456367 == reserve_usdt, 1);
-        assert!(70100 == reserve_xbtc, 2);
+        assert!(184456367 == reserve_usdt, reserve_usdt);
+        assert!(70100 == reserve_xbtc, reserve_xbtc);
 
         let expected_btc = implements::get_amount_out(
-            (usdt_val / 100 * 997 / 1000),
+            usdt_val - math::mul_div(usdt_val, 3, 1000),
             reserve_usdt,
             reserve_xbtc
         );
-        assert!(689 == expected_btc, 3);
+        assert!(34944 == expected_btc, expected_btc);
 
         interface::swap<USDT, XBTC>(
             &user_account,
@@ -531,24 +531,25 @@ module swap::interface_tests {
             1
         );
         let (reserve_usdt, reserve_xbtc) = implements::get_reserves_size<USDT, XBTC>();
-        assert!(368802061 == reserve_usdt, 4);
-        assert!(35156 == reserve_xbtc, 5);
+        assert!(368802061 == reserve_usdt, reserve_usdt);
+        assert!(35156 == reserve_xbtc, reserve_xbtc);
 
-        assert!(coin::balance<XBTC>(user) > xbtc_val, 6);
-        assert!(coin::balance<USDT>(user) == 0, 7);
+        assert!(coin::balance<XBTC>(user) == xbtc_val + expected_btc, coin::balance<XBTC>(user));
+        assert!(coin::balance<USDT>(user) == 0, coin::balance<USDT>(user));
 
         let expected_usdt = implements::get_amount_out(
-            (xbtc_val * 997 / 1000),
+            xbtc_val - math::mul_div(xbtc_val, 3, 1000),
             reserve_xbtc,
             reserve_usdt
         );
-        assert!(245126150 == expected_usdt, expected_usdt);
+        assert!(245127326 == expected_usdt, expected_usdt);
 
         interface::swap<XBTC, USDT>(
             &user_account,
             xbtc_val,
             1
         );
-        assert!(245127326 == coin::balance<USDT>(user), coin::balance<USDT>(user));
+        assert!(coin::balance<XBTC>(user) == expected_btc, coin::balance<XBTC>(user));
+        assert!(expected_usdt == coin::balance<USDT>(user), coin::balance<USDT>(user));
     }
 }
