@@ -499,4 +499,52 @@ module swap::interface_tests {
             xbtc_val
         );
     }
+
+    #[test(user = @0x123)]
+    fun test_swap_with_value_should_ok(
+        user: address
+    ) {
+        let user_account = account::create_account_for_test(user);
+        let usdt_val = 184456367;
+        let xbtc_val = 70100;
+
+        register_pool_with_liquidity(
+            &user_account,
+            usdt_val,
+            xbtc_val,
+        );
+
+        let (reserve_usdt, reserve_xbtc) = implements::get_reserves_size<USDT, XBTC>();
+        assert!(184456367 == reserve_usdt, 1);
+        assert!(70100 == reserve_xbtc, 2);
+
+        let expected_btc = implements::get_amount_out(
+            (usdt_val / 100 * 997 / 1000),
+            reserve_usdt,
+            reserve_xbtc
+        );
+        assert!(689 == expected_btc, 3);
+
+        interface::swap<USDT, XBTC>(
+            &user_account,
+            usdt_val,
+            1
+        );
+        let (reserve_usdt, reserve_xbtc) = implements::get_reserves_size<USDT, XBTC>();
+        assert!(368802061 == reserve_usdt, 4);
+        assert!(35156 == reserve_xbtc, 5);
+
+        let expected_usdt = implements::get_amount_out(
+            (xbtc_val / 100 * 997 / 1000),
+            reserve_xbtc,
+            reserve_usdt
+        );
+        assert!(7158658 == expected_usdt, 6);
+
+        interface::swap<XBTC, USDT>(
+            &user_account,
+            xbtc_val,
+            1
+        );
+    }
 }
