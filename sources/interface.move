@@ -103,6 +103,43 @@ module swap::interface {
         coin::deposit(account_addr, lp_coins);
     }
 
+    public entry fun add_liquidity_with_register<X, Y>(
+        account: &signer,
+        coin_x_val: u64,
+        coin_x_val_min: u64,
+        coin_y_val: u64,
+        coin_y_val_min: u64,
+    ) {
+        assert!(!controller::is_emergency(), ERR_EMERGENCY);
+        assert!(is_order<X, Y>(), ERR_MUST_BE_ORDER);
+
+        assert!(coin::is_coin_initialized<X>(), ERR_NOT_COIN);
+        assert!(coin::is_coin_initialized<Y>(), ERR_NOT_COIN);
+        implements::register_pool<X, Y>(account);
+
+        let (optimal_x, optimal_y) = implements::calc_optimal_coin_values<X, Y>(
+            coin_x_val,
+            coin_y_val,
+        );
+
+        assert!(optimal_x >= coin_x_val_min, ERR_INSUFFICIENT_X_AMOUNT);
+        assert!(optimal_y >= coin_y_val_min, ERR_INSUFFICIENT_Y_AMOUNT);
+
+        let coin_x_opt = coin::withdraw<X>(account, optimal_x);
+        let coin_y_opt = coin::withdraw<Y>(account, optimal_y);
+
+        let lp_coins = implements::mint<X, Y>(
+            coin_x_opt,
+            coin_y_opt,
+        );
+
+        let account_addr = signer::address_of(account);
+        if (!coin::is_account_registered<LP<X, Y>>(account_addr)) {
+            coin::register<LP<X, Y>>(account);
+        };
+        coin::deposit(account_addr, lp_coins);
+    }
+
     public entry fun remove_liquidity<X, Y>(
         account: &signer,
         lp_val: u64,
