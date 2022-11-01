@@ -126,6 +126,16 @@ module swap::implements {
         account::get_signer_capability_address(&config.fee_cap)
     }
 
+    public fun is_pool_exists<X,Y>():bool acquires Config {
+        let pool_account = pool_account();
+        let pool_address = signer::address_of(&pool_account);
+        if (!exists<LiquidityPool<X, Y>>(pool_address)) {
+            return false
+        } else {
+            return true
+        }
+    }
+
     public(friend) fun beneficiary(): address acquires Config {
         assert!(exists<Config>(@swap), ERR_SWAP_NOT_INITIALIZE);
 
@@ -155,16 +165,6 @@ module swap::implements {
         move_to(swap_admin, Config { pool_cap, fee_cap, controller, beneficiary });
 
         event::initialize(&pool_account);
-    }
-
-    public(friend) fun is_pool_exists<X,Y>():bool acquires Config {
-        let pool_account = pool_account();
-        let pool_address = signer::address_of(&pool_account);
-        if (!exists<LiquidityPool<X, Y>>(pool_address)) {
-            return false
-        } else {
-            return true
-        }
     }
 
     // 'X', 'Y' must ordered.
