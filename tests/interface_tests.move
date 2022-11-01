@@ -178,6 +178,7 @@ module swap::interface_tests {
         interface::register_pool<XBTC, USDT>(&coin_admin);
     }
 
+
     #[test]
     fun test_add_liquidity() {
         genesis::setup();
@@ -198,7 +199,7 @@ module swap::interface_tests {
             signer::address_of(&coin_admin)
         );
 
-        interface::register_pool<XBTC, USDT>(&coin_admin);
+        assert!(!implements::is_pool_exists<USDT,XBTC>(), 1);
 
         let coin_x_val = coin::value(&coin_xbtc);
         let coin_y_val = coin::value(&coin_usdt);
@@ -207,6 +208,8 @@ module swap::interface_tests {
         coin::deposit(@swap, coin_xbtc);
         coin::deposit(@swap, coin_usdt);
         interface::add_liquidity<USDT, XBTC>(&coin_admin, coin_y_val, 1000, coin_x_val, 1000);
+
+        assert!(implements::is_pool_exists<USDT,XBTC>(), 2);
 
         coin::destroy_mint_cap(xbtc_mint_cap);
         coin::destroy_mint_cap(usdt_mint_cap);
