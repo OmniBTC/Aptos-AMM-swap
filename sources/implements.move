@@ -157,6 +157,16 @@ module swap::implements {
         event::initialize(&pool_account);
     }
 
+    public(friend) fun is_pool_exists<X,Y>():bool acquires Config {
+        let pool_account = pool_account();
+        let pool_address = signer::address_of(&pool_account);
+        if (!exists<LiquidityPool<X, Y>>(pool_address)) {
+            return false
+        } else {
+            return true
+        }
+    }
+
     // 'X', 'Y' must ordered.
     public(friend) fun register_pool<X, Y>(
         account: &signer
