@@ -408,7 +408,7 @@ module swap::interface_tests {
 
         let (reserve_usdt, reserve_xbtc) = implements::get_reserves_size<USDT, XBTC>();
         let expected_xbtc = implements::get_amount_out(
-            (usdt_val / 100 * 997 / 1000),
+            (usdt_val / 100),
             reserve_usdt,
             reserve_xbtc
         );
@@ -481,7 +481,7 @@ module swap::interface_tests {
         let (reserve_usdt, reserve_xbtc) = implements::get_reserves_size<USDT, XBTC>();
 
         let _expected_xbtc = implements::get_amount_out(
-            (math::mul_div(max_usdt, 997, 1000)),
+            max_usdt,
             reserve_usdt,
             reserve_xbtc
         );
@@ -522,11 +522,11 @@ module swap::interface_tests {
         assert!(70100 == reserve_xbtc, reserve_xbtc);
 
         let expected_btc = implements::get_amount_out(
-            usdt_val - math::mul_div(usdt_val, 3, 1000),
+            usdt_val,
             reserve_usdt,
             reserve_xbtc
         );
-        assert!(34944 == expected_btc, expected_btc);
+        assert!(34997 == expected_btc, expected_btc);
 
         interface::swap<USDT, XBTC>(
             &user_account,
@@ -535,17 +535,17 @@ module swap::interface_tests {
         );
         let (reserve_usdt, reserve_xbtc) = implements::get_reserves_size<USDT, XBTC>();
         assert!(368802061 == reserve_usdt, reserve_usdt);
-        assert!(35156 == reserve_xbtc, reserve_xbtc);
+        assert!(35103 == reserve_xbtc, reserve_xbtc);
 
         assert!(coin::balance<XBTC>(user) == xbtc_val + expected_btc, coin::balance<XBTC>(user));
         assert!(coin::balance<USDT>(user) == 0, coin::balance<USDT>(user));
 
         let expected_usdt = implements::get_amount_out(
-            xbtc_val - math::mul_div(xbtc_val, 3, 1000),
+            xbtc_val,
             reserve_xbtc,
             reserve_usdt
         );
-        assert!(245127326 == expected_usdt, expected_usdt);
+        assert!(245497690 == expected_usdt, expected_usdt);
 
         interface::swap<XBTC, USDT>(
             &user_account,
