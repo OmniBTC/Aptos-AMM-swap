@@ -355,9 +355,8 @@ module swap::implements {
     ) acquires LiquidityPool, Config {
         let fee_multiplier = FEE_MULTIPLIER / 5; // 20% fee to swap fundation.
         let fee_value = math::mul_div(coin_in_value, fee_multiplier, FEE_SCALE);
-        let coin_in_after_fee = coin_in_value - math::mul_div(coin_in_value, FEE_MULTIPLIER, FEE_SCALE);
 
-        let coin_out_value = get_amount_out(coin_in_after_fee, reserve_in, reserve_out);
+        let coin_out_value = get_amount_out(coin_in_value, reserve_in, reserve_out);
         assert!(coin_out_value >= coin_out_min_value, ERR_COIN_OUT_NUM_LESS_THAN_EXPECTED_MINIMUM, );
 
         let pool_address = pool_address();
@@ -401,9 +400,8 @@ module swap::implements {
     ) acquires LiquidityPool, Config {
         let fee_multiplier = FEE_MULTIPLIER / 5; // 20% fee to swap fundation.
         let fee_value = math::mul_div(coin_in_value, fee_multiplier, FEE_SCALE);
-        let coin_in_after_fee = coin_in_value - math::mul_div(coin_in_value, FEE_MULTIPLIER, FEE_SCALE);
 
-        let coin_out_value = get_amount_out(coin_in_after_fee, reserve_in, reserve_out);
+        let coin_out_value = get_amount_out(coin_in_value, reserve_in, reserve_out);
         assert!(coin_out_value >= coin_out_min_value, ERR_COIN_OUT_NUM_LESS_THAN_EXPECTED_MINIMUM, );
 
         let pool_address = pool_address();
