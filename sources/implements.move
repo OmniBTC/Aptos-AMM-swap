@@ -4,14 +4,15 @@ module swap::implements {
     use std::signer;
     use std::string::{Self, String};
 
-    use aptos_framework::account::{Self, SignerCapability};
-    use aptos_framework::coin::{Self, Coin};
+    use aptos_framework::account::SignerCapability;
+    use aptos_framework::coin;
     use aptos_framework::timestamp;
+
     use lp::lp_coin::LP;
 
     use swap::event;
     use swap::init;
-    use swap::math;
+    use swap::math::{Self, mul_to_u128, mul_div, mul_div_u128, sqrt};
 
     friend swap::interface;
     friend swap::controller;
@@ -126,7 +127,7 @@ module swap::implements {
         account::get_signer_capability_address(&config.fee_cap)
     }
 
-    public fun is_pool_exists<X,Y>():bool acquires Config {
+    public fun is_pool_exists<X, Y>(): bool acquires Config {
         let pool_account = pool_account();
         let pool_address = signer::address_of(&pool_account);
         if (!exists<LiquidityPool<X, Y>>(pool_address)) {
@@ -231,7 +232,7 @@ module swap::implements {
 
         let lp_coins_total = option::extract(&mut coin::supply<LP<X, Y>>());
         let provided_liq = if (0 == lp_coins_total) {
-            let initial_liq = math::sqrt(x_provided_val) * math::sqrt(y_provided_val);
+            let initial_liq = sqrt(mul_to_u128(x_provided_val, y_provided_val));
             assert!(initial_liq > MINIMAL_LIQUIDITY, ERR_LIQUID_NOT_ENOUGH);
             initial_liq - MINIMAL_LIQUIDITY
         } else {
@@ -316,7 +317,7 @@ module swap::implements {
         // Multiply coin_in by the current exchange rate:
         // current_exchange_rate = reserve_out / reserve_in
         // amount_in_after_fees * current_exchange_rate -> amount_out
-        math::mul_div_u128(coin_in_val_after_fees, // scaled to 1000
+        mul_div_u128(coin_in_val_after_fees, // scaled to 1000
             (reserve_out as u128),
             new_reserve_in  // scaled to 1000
         )
@@ -354,7 +355,7 @@ module swap::implements {
         reserve_out: u64,
     ) acquires LiquidityPool, Config {
         let fee_multiplier = FEE_MULTIPLIER / 5; // 20% fee to swap fundation.
-        let fee_value = math::mul_div(coin_in_value, fee_multiplier, FEE_SCALE);
+        let fee_value = mul_div(coin_in_value, fee_multiplier, FEE_SCALE);
 
         let coin_out_value = get_amount_out(coin_in_value, reserve_in, reserve_out);
         assert!(coin_out_value >= coin_out_min_value, ERR_COIN_OUT_NUM_LESS_THAN_EXPECTED_MINIMUM, );
@@ -399,7 +400,7 @@ module swap::implements {
         reserve_out: u64,
     ) acquires LiquidityPool, Config {
         let fee_multiplier = FEE_MULTIPLIER / 5; // 20% fee to swap fundation.
-        let fee_value = math::mul_div(coin_in_value, fee_multiplier, FEE_SCALE);
+        let fee_value = mul_div(coin_in_value, fee_multiplier, FEE_SCALE);
 
         let coin_out_value = get_amount_out(coin_in_value, reserve_in, reserve_out);
         assert!(coin_out_value >= coin_out_min_value, ERR_COIN_OUT_NUM_LESS_THAN_EXPECTED_MINIMUM, );
@@ -483,7 +484,7 @@ module swap::implements {
 
         // exchange_price = reserve_out / reserve_in_size
         // amount_returned = coin_in_val * exchange_price
-        let res = math::mul_div(coin_in, reserve_out, reserve_in);
+        let res = mul_div(coin_in, reserve_out, reserve_in);
         (res as u64)
     }
 
