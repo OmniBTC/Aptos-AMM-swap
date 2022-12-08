@@ -10,10 +10,11 @@ module swap::interface_tests {
     use aptos_framework::genesis;
 
     use lp::lp_coin::LP;
+
     use swap::implements;
     use swap::init;
     use swap::interface;
-    use swap::math;
+    use swap::math::{sqrt, mul_to_u128};
 
     const MAX_U64: u64 = 18446744073709551615;
 
@@ -112,7 +113,7 @@ module swap::interface_tests {
 
         assert!(
             coin::balance<LP<USDT, XBTC>>(admin_address)
-                == math::sqrt(xbtc_val) * math::sqrt(usdt_val) - 1000,
+                == sqrt(mul_to_u128(xbtc_val, usdt_val)) - 1000,
             coin::balance<LP<USDT, XBTC>>(admin_address)
         );
     }
@@ -313,8 +314,8 @@ module swap::interface_tests {
         assert!(coin::balance<USDT>(user) == usdt_val - usdt_val / 100, 3);
         assert!(coin::balance<XBTC>(user) == xbtc_val - xbtc_val / 100, 4);
         assert!(
-            137840390 == coin::balance<LP<USDT,XBTC>>(user),
-            coin::balance<LP<USDT,XBTC>>(user)
+            137840477 == coin::balance<LP<USDT, XBTC>>(user),
+            coin::balance<LP<USDT, XBTC>>(user)
         )
     }
 
@@ -346,30 +347,28 @@ module swap::interface_tests {
         assert!(coin::balance<USDT>(user) == usdt_val - usdt_val / 100, 3);
         assert!(coin::balance<XBTC>(user) == xbtc_val - xbtc_val / 100, 4);
         assert!(
-            coin::balance<LP<USDT,XBTC>>(user) == 137840390,
-            coin::balance<LP<USDT,XBTC>>(user)
+            coin::balance<LP<USDT, XBTC>>(user) == 137840477,
+            coin::balance<LP<USDT, XBTC>>(user)
         );
 
         interface::remove_liquidity<USDT, XBTC>(
             &user_account,
-            13784039,
+            137840477 / 10,
             1,
             1,
         );
 
         assert!(
-            coin::balance<LP<USDT,XBTC>>(user) == 137840390 - 13784039,
-            coin::balance<LP<USDT,XBTC>>(user)
+            coin::balance<LP<USDT, XBTC>>(user) == 137840477 - 137840477 / 10,
+            coin::balance<LP<USDT, XBTC>>(user)
         );
 
         assert!(
-            coin::balance<USDT>(user)
-                == usdt_val - usdt_val / 100 + usdt_val / 1000,
+            coin::balance<USDT>(user) == 1882899999896,
             coin::balance<USDT>(user)
         );
         assert!(
-            coin::balance<XBTC>(user)
-                == xbtc_val - xbtc_val / 100 + xbtc_val / 1000,
+            coin::balance<XBTC>(user) == 99099999,
             coin::balance<XBTC>(user)
         );
     }
@@ -402,8 +401,8 @@ module swap::interface_tests {
         assert!(coin::balance<USDT>(user) == usdt_val - usdt_val / 100, 3);
         assert!(coin::balance<XBTC>(user) == xbtc_val - xbtc_val / 100, 4);
         assert!(
-            137840390 == coin::balance<LP<USDT,XBTC>>(user),
-            coin::balance<LP<USDT,XBTC>>(user)
+            137840477 == coin::balance<LP<USDT, XBTC>>(user),
+            coin::balance<LP<USDT, XBTC>>(user)
         );
 
         let (reserve_usdt, reserve_xbtc) = implements::get_reserves_size<USDT, XBTC>();
