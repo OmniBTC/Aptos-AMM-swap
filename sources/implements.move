@@ -4,8 +4,8 @@ module swap::implements {
     use std::signer;
     use std::string::{Self, String};
 
-    use aptos_framework::account::SignerCapability;
-    use aptos_framework::coin;
+    use aptos_framework::account::{Self, SignerCapability};
+    use aptos_framework::coin::{Self, Coin};
     use aptos_framework::timestamp;
 
     use lp::lp_coin::LP;

@@ -4,6 +4,7 @@ module swap::interface_tests {
     use std::signer;
     use std::string::utf8;
 
+    use aptos_framework::account;
     use aptos_framework::aptos_coin::{Self, AptosCoin};
     use aptos_framework::coin::{Self, MintCapability};
     use aptos_framework::genesis;
