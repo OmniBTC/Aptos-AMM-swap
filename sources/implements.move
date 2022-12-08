@@ -33,6 +33,7 @@ module swap::implements {
     const ERR_INCORRECT_SWAP: u64 = 313;
     const ERR_POOL_FULL: u64 = 314;
     const ERR_DEPRECATED_FUNCTION: u64 = 315;
+    const ERR_INSUFFICIENT_LIQUIDITY_MINTED: u64 = 316;
 
     const SYMBOL_PREFIX_LENGTH: u64 = 4;
     const FEE_MULTIPLIER: u64 = 30;
@@ -247,6 +248,7 @@ module swap::implements {
                 (y_liq as u64)
             }
         };
+        assert!(provided_liq > 0, ERR_INSUFFICIENT_LIQUIDITY_MINTED);
 
         let pool = borrow_global_mut<LiquidityPool<X, Y>>(pool_address);
         coin::merge(&mut pool.coin_x, coin_x);
